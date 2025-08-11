@@ -81,3 +81,5 @@ class Usuario(AbstractUser):
     def __str__(self):
         full = (self.first_name or "").strip() + " " + (self.last_name or "").strip()
         return full.strip() or self.username
+
+

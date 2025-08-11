@@ -20,7 +20,7 @@ urlpatterns = [
     path("api/v1/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/v1/", include("core.urls")),  
         # Prefijos por dominio (API v1)
-    path("api/v1/", include("accounts.urls")),
+    path("api/v1/accounts/", include("accounts.urls")),
     path("api/v1/", include("empresas.urls")),
     path("api/v1/", include("clientes.urls_sub")),
     path("api/v1/", include("clientes.urls")),

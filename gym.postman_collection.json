@@ -1,0 +1,1033 @@
+{
+	
+	"item": [
+		{
+			"name": "Generate token",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"username\": \"root\",\r\n  \"password\": \"Temporal2025\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:8000/api/v1/token/",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"token",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Health",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0NzY3OTA4LCJpYXQiOjE3NTQ3NjQzMDgsImp0aSI6Ijk5ZWQwYmM5OTBkYTRmZmI4MzUwNzcwZjhmYTFkNDM2IiwidXNlcl9pZCI6IjEifQ.OUHv8aOoPeX3oNw8Bz2Bv4hSIJbiZLHsArwW_Gl17ng",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:8000/health/",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"health",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Ping",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0NzY3OTA4LCJpYXQiOjE3NTQ3NjQzMDgsImp0aSI6Ijk5ZWQwYmM5OTBkYTRmZmI4MzUwNzcwZjhmYTFkNDM2IiwidXNlcl9pZCI6IjEifQ.OUHv8aOoPeX3oNw8Bz2Bv4hSIJbiZLHsArwW_Gl17ng",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:8000/api/v1/ping/",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"ping",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Empresas",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg0NzkyLCJpYXQiOjE3NTQ3ODExOTIsImp0aSI6IjBmMGY2Y2NmMWZiYzRmOGE4M2ViNmEyN2U4MjY4M2RlIiwidXNlcl9pZCI6MX0.ruU3dSmtax2KTngWRMjDyWELt60D1-pUUV6HaSskYLA",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"nombre\": \"Iron Gym\",\r\n  \"rfc\": \"IGY123456\",\r\n  \"correo\": \"contacto@iron.gym\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:8000/api/v1/empresas/",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"empresas",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Empresas",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg0NzkyLCJpYXQiOjE3NTQ3ODExOTIsImp0aSI6IjBmMGY2Y2NmMWZiYzRmOGE4M2ViNmEyN2U4MjY4M2RlIiwidXNlcl9pZCI6MX0.ruU3dSmtax2KTngWRMjDyWELt60D1-pUUV6HaSskYLA",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:8000/api/v1/empresas/",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"empresas",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Sucursales",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg0NzkyLCJpYXQiOjE3NTQ3ODExOTIsImp0aSI6IjBmMGY2Y2NmMWZiYzRmOGE4M2ViNmEyN2U4MjY4M2RlIiwidXNlcl9pZCI6MX0.ruU3dSmtax2KTngWRMjDyWELt60D1-pUUV6HaSskYLA",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"empresa\": 1,\r\n  \"nombre\": \"Sur\",\r\n  \"telefono\": \"555-1234\",\r\n  \"horario_apertura\": \"06:00:00\",\r\n  \"horario_cierre\": \"22:00:00\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:8000/api/v1/sucursales/",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"sucursales",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Sucursales",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://127.0.0.1:8000/api/v1/sucursales/",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"sucursales",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Usuarios-Empresa",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg0NzkyLCJpYXQiOjE3NTQ3ODExOTIsImp0aSI6IjBmMGY2Y2NmMWZiYzRmOGE4M2ViNmEyN2U4MjY4M2RlIiwidXNlcl9pZCI6MX0.ruU3dSmtax2KTngWRMjDyWELt60D1-pUUV6HaSskYLA",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"usuario\": 1,\r\n  \"empresa\": 1,\r\n  \"sucursal\": 1,\r\n  \"rol\": \"Gerente\",\r\n  \"permisos\": {\"ver_ventas\": true, \"editar_clientes\": true}\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/usuarios-empresa/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"usuarios-empresa",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Usuarios-Empresa/",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg0NzkyLCJpYXQiOjE3NTQ3ODExOTIsImp0aSI6IjBmMGY2Y2NmMWZiYzRmOGE4M2ViNmEyN2U4MjY4M2RlIiwidXNlcl9pZCI6MX0.ruU3dSmtax2KTngWRMjDyWELt60D1-pUUV6HaSskYLA",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url_gym}}/usuarios-empresa/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"usuarios-empresa",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Clientes",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg0NzkyLCJpYXQiOjE3NTQ3ODExOTIsImp0aSI6IjBmMGY2Y2NmMWZiYzRmOGE4M2ViNmEyN2U4MjY4M2RlIiwidXNlcl9pZCI6MX0.ruU3dSmtax2KTngWRMjDyWELt60D1-pUUV6HaSskYLA",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"nombre\": \"Juan\",\r\n  \"apellidos\": \"Pérez\",\r\n  \"email\": \"juan@example.com\",\r\n  \"factura\": false,\r\n  \"recibir_promociones\": true\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/clientes/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Clientes",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg4OTQzLCJpYXQiOjE3NTQ3ODUzNDMsImp0aSI6IjQ4NmRmODcxYTM0MzQzMDdiMDFlNTA2ZjhlOTgzMGJjIiwidXNlcl9pZCI6MX0.L5yM8fN_X7MoDZu5zugirIHxkaqbPiMaSOM88XP0tKE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url_gym}}/clientes/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Datos-Contacto",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg4OTQzLCJpYXQiOjE3NTQ3ODUzNDMsImp0aSI6IjQ4NmRmODcxYTM0MzQzMDdiMDFlNTA2ZjhlOTgzMGJjIiwidXNlcl9pZCI6MX0.L5yM8fN_X7MoDZu5zugirIHxkaqbPiMaSOM88XP0tKE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"cliente\": 1,\r\n  \"tipo\": \"correo\",\r\n  \"valor\": \"cliente@example.com\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/clientes/datos-contacto/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						"datos-contacto",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Datos-Contacto",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg4OTQzLCJpYXQiOjE3NTQ3ODUzNDMsImp0aSI6IjQ4NmRmODcxYTM0MzQzMDdiMDFlNTA2ZjhlOTgzMGJjIiwidXNlcl9pZCI6MX0.L5yM8fN_X7MoDZu5zugirIHxkaqbPiMaSOM88XP0tKE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url_gym}}/clientes/datos-contacto/1",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						"datos-contacto",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Datos-Fiscales",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg4OTQzLCJpYXQiOjE3NTQ3ODUzNDMsImp0aSI6IjQ4NmRmODcxYTM0MzQzMDdiMDFlNTA2ZjhlOTgzMGJjIiwidXNlcl9pZCI6MX0.L5yM8fN_X7MoDZu5zugirIHxkaqbPiMaSOM88XP0tKE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"cliente\": 1,\r\n  \"rfc\": \"XAXX010101000\",\r\n  \"razon_social\": \"Cliente Ejemplo SA de CV\",\r\n  \"persona\": \"moral\",\r\n  \"codigo_postal\": \"06000\",\r\n  \"regimen_fiscal\": \"601\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/clientes/datos-fiscales/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						"datos-fiscales",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Datos-Fiscales",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg4OTQzLCJpYXQiOjE3NTQ3ODUzNDMsImp0aSI6IjQ4NmRmODcxYTM0MzQzMDdiMDFlNTA2ZjhlOTgzMGJjIiwidXNlcl9pZCI6MX0.L5yM8fN_X7MoDZu5zugirIHxkaqbPiMaSOM88XP0tKE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url_gym}}/clientes/datos-fiscales/1",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						"datos-fiscales",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Convenios",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg4OTQzLCJpYXQiOjE3NTQ3ODUzNDMsImp0aSI6IjQ4NmRmODcxYTM0MzQzMDdiMDFlNTA2ZjhlOTgzMGJjIiwidXNlcl9pZCI6MX0.L5yM8fN_X7MoDZu5zugirIHxkaqbPiMaSOM88XP0tKE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"cliente\": 1,\r\n  \"empresa\": 1,\r\n  \"empresa_convenio\": \"Empresa XYZ\",\r\n  \"telefono_oficina\": \"555-1234\",\r\n  \"medio_entero\": \"Facebook\",\r\n  \"tipo_cliente\": \"Corporativo\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/clientes/convenios/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						"convenios",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Convenios",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg4OTQzLCJpYXQiOjE3NTQ3ODUzNDMsImp0aSI6IjQ4NmRmODcxYTM0MzQzMDdiMDFlNTA2ZjhlOTgzMGJjIiwidXNlcl9pZCI6MX0.L5yM8fN_X7MoDZu5zugirIHxkaqbPiMaSOM88XP0tKE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url_gym}}/clientes/convenios/1",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						"convenios",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Caracteristicas",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg4OTQzLCJpYXQiOjE3NTQ3ODUzNDMsImp0aSI6IjQ4NmRmODcxYTM0MzQzMDdiMDFlNTA2ZjhlOTgzMGJjIiwidXNlcl9pZCI6MX0.L5yM8fN_X7MoDZu5zugirIHxkaqbPiMaSOM88XP0tKE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"empresa\": 1,\r\n  \"nombre\": \"Tipo de sangre\",\r\n  \"tipo_dato\": \"texto\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/clientes/caracteristicas/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						"caracteristicas",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Caracteristicas",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg4OTQzLCJpYXQiOjE3NTQ3ODUzNDMsImp0aSI6IjQ4NmRmODcxYTM0MzQzMDdiMDFlNTA2ZjhlOTgzMGJjIiwidXNlcl9pZCI6MX0.L5yM8fN_X7MoDZu5zugirIHxkaqbPiMaSOM88XP0tKE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url_gym}}/clientes/caracteristicas/1",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						"caracteristicas",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Datos-Adicionales/",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg4OTQzLCJpYXQiOjE3NTQ3ODUzNDMsImp0aSI6IjQ4NmRmODcxYTM0MzQzMDdiMDFlNTA2ZjhlOTgzMGJjIiwidXNlcl9pZCI6MX0.L5yM8fN_X7MoDZu5zugirIHxkaqbPiMaSOM88XP0tKE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"cliente\": 1,\r\n  \"caracteristica\": 1,\r\n  \"campo\": \"Tipo de sangre\",\r\n  \"valor\": \"O+\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/clientes/datos-adicionales/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						"datos-adicionales",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Datos-adicionales",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg4OTQzLCJpYXQiOjE3NTQ3ODUzNDMsImp0aSI6IjQ4NmRmODcxYTM0MzQzMDdiMDFlNTA2ZjhlOTgzMGJjIiwidXNlcl9pZCI6MX0.L5yM8fN_X7MoDZu5zugirIHxkaqbPiMaSOM88XP0tKE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url_gym}}/clientes/datos-adicionales/1",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						"datos-adicionales",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "CREATE clientes-sucursales",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg4OTQzLCJpYXQiOjE3NTQ3ODUzNDMsImp0aSI6IjQ4NmRmODcxYTM0MzQzMDdiMDFlNTA2ZjhlOTgzMGJjIiwidXNlcl9pZCI6MX0.L5yM8fN_X7MoDZu5zugirIHxkaqbPiMaSOM88XP0tKE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"cliente\": 1,\r\n  \"sucursal\": 1,\r\n  \"empresa\": 1,\r\n  \"fecha_inicio\": \"2025-08-10\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/clientes/sucursales/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						"sucursales",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get clientes-sucursales",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzg4OTQzLCJpYXQiOjE3NTQ3ODUzNDMsImp0aSI6IjQ4NmRmODcxYTM0MzQzMDdiMDFlNTA2ZjhlOTgzMGJjIiwidXNlcl9pZCI6MX0.L5yM8fN_X7MoDZu5zugirIHxkaqbPiMaSOM88XP0tKE",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url_gym}}/clientes/sucursales/1",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"clientes",
+						"sucursales",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create configuraciones",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzk4ODU0LCJpYXQiOjE3NTQ3OTUyNTQsImp0aSI6IjEwYTU3ZWNiNDIwYjQ5M2RiOWJmOTUwZDgyYjBjMjMyIiwidXNlcl9pZCI6MX0.tk5YoaTmfnFxGVs4YPijbJU8161O1H2u1o1Fhvg70pM",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"nombre\": \"moneda_default\",\r\n  \"tipo_dato\": \"text\",\r\n  \"descripcion\": \"Moneda por defecto para la empresa\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/configuraciones/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"configuraciones",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create valores-configuracion",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzk4ODU0LCJpYXQiOjE3NTQ3OTUyNTQsImp0aSI6IjEwYTU3ZWNiNDIwYjQ5M2RiOWJmOTUwZDgyYjBjMjMyIiwidXNlcl9pZCI6MX0.tk5YoaTmfnFxGVs4YPijbJU8161O1H2u1o1Fhvg70pM",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"configuracion\": 1,\r\n  \"empresa\": 1,\r\n  \"valor\": \"MXN\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/valores-configuracion/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"valores-configuracion",
+						""
+					]
+				},
+				"description": "Crea la relacion de la configuracion con algun modelo"
+			},
+			"response": []
+		},
+		{
+			"name": "Get valores-configuracion_por_empresa",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzk4ODU0LCJpYXQiOjE3NTQ3OTUyNTQsImp0aSI6IjEwYTU3ZWNiNDIwYjQ5M2RiOWJmOTUwZDgyYjBjMjMyIiwidXNlcl9pZCI6MX0.tk5YoaTmfnFxGVs4YPijbJU8161O1H2u1o1Fhvg70pM",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url_gym}}/valores-configuracion/por-empresa/1/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"valores-configuracion",
+						"por-empresa",
+						"1",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Planes",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzk4ODU0LCJpYXQiOjE3NTQ3OTUyNTQsImp0aSI6IjEwYTU3ZWNiNDIwYjQ5M2RiOWJmOTUwZDgyYjBjMjMyIiwidXNlcl9pZCI6MX0.tk5YoaTmfnFxGVs4YPijbJU8161O1H2u1o1Fhvg70pM",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"empresa\": 1,\r\n  \"nombre\": \"Mensual Premium\",\r\n  \"descripcion\": \"Acceso total, sauna y clases\",\r\n  \"acceso_multisucursal\": true,\r\n  \"tipo_plan\": \"mensual\",\r\n  \"preventa\": false,\r\n  \"desde\": \"2025-08-10\",\r\n  \"hasta\": \"2025-12-31\",\r\n  \"visitas_gratis\": 2,\r\n  \"usuario\": 1\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/planes/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"planes",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Planes_Precios",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzk4ODU0LCJpYXQiOjE3NTQ3OTUyNTQsImp0aSI6IjEwYTU3ZWNiNDIwYjQ5M2RiOWJmOTUwZDgyYjBjMjMyIiwidXNlcl9pZCI6MX0.tk5YoaTmfnFxGVs4YPijbJU8161O1H2u1o1Fhvg70pM",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"plan\": 1,\r\n  \"esquema\": \"individual\",\r\n  \"tipo\": \"mensual\",\r\n  \"precio\": \"799.00\",\r\n  \"numero_visitas\": 0,\r\n  \"usuario\": 1\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/planes/precios/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"planes",
+						"precios",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Planes",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzk4ODU0LCJpYXQiOjE3NTQ3OTUyNTQsImp0aSI6IjEwYTU3ZWNiNDIwYjQ5M2RiOWJmOTUwZDgyYjBjMjMyIiwidXNlcl9pZCI6MX0.tk5YoaTmfnFxGVs4YPijbJU8161O1H2u1o1Fhvg70pM",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url_gym}}/planes/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"planes",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Planes_Restricciones",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzk4ODU0LCJpYXQiOjE3NTQ3OTUyNTQsImp0aSI6IjEwYTU3ZWNiNDIwYjQ5M2RiOWJmOTUwZDgyYjBjMjMyIiwidXNlcl9pZCI6MX0.tk5YoaTmfnFxGVs4YPijbJU8161O1H2u1o1Fhvg70pM",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"plan\": 1,\r\n  \"dia\": \"Lunes\",\r\n  \"hora_inicio\": \"06:00:00\",\r\n  \"hora_fin\": \"22:00:00\",\r\n  \"usuario\": 1\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/planes/restricciones/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"planes",
+						"restricciones",
+						""
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
