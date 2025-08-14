@@ -1,0 +1,505 @@
+Table empresas {
+  id int [pk, increment]
+  nombre varchar
+  razon_social varchar
+  rfc varchar
+  direccion text
+  telefono varchar
+  correo varchar
+  sitio_web varchar
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+}
+
+Table sucursales {
+  id int [pk, increment]
+  empresa_id int [ref: > empresas.id]
+  nombre varchar
+  direccion text
+  telefono varcharv// relacionar con usuarios
+  correo varchar
+  responsable varchar
+  horario_apertura time
+  horario_cierre time
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+}
+
+
+Table configuraciones {
+  id int [pk, increment]
+  nombre varchar
+  tipo_dato varchar
+  descripcion text
+}
+
+Table valores_configuracion {
+  id int [pk, increment]
+  configuracion_id int [ref: > configuraciones.id]
+  empresa_id int [ref: > empresas.id]
+  valor text
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+}
+
+
+
+Table usuarios_empresa {
+  id int [pk, increment]
+  usuario_id int [ref: > Usuarios.id]
+  empresa_id int [ref: > empresas.id]
+  sucursal_id int [ref: > sucursales.id]
+  rol varchar
+  permisos text
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+}
+
+Table roles {
+  id int [pk, increment]
+  nombre varchar // 'Admin', 'Gerente', 'Recepcionista'
+  empresa_id int [ref: > empresas.id]
+}
+
+Table permisos {
+  id int [pk, increment]
+  nombre varchar // 'ver_ventas', 'editar_clientes'
+  url varchar
+  tipo_permiso int
+  empresa_id int [ref: > empresas.id]
+}
+
+
+Table rol_permisos {
+  rol_id int [ref: > roles.id]
+  permiso_id int [ref: > permisos.id]
+  empresa_id int [ref: > empresas.id]
+}
+
+Table rol_Usuarios {
+  rol_id int [ref: > roles.id]
+  usuario_id int [ref: > Usuarios.id]
+}
+
+Table cliente_sucursales {
+  id int [pk, increment]
+  cliente_id int [ref: > clientes.id]
+  sucursal_id int [ref: > sucursales.id]
+  empresa_id int [ref: > empresas.id]
+  fecha_inicio date
+  fecha_fin date
+  is_active boolean
+}
+
+Table clientes {
+  id int [pk, increment]
+  apellidos varchar
+  nombre varchar
+  fecha_nacimiento date
+  contacto_emergencia varchar
+  email varchar
+  factura boolean
+  observaciones text
+  recordar_vencimiento boolean
+  recibo_pago boolean
+  recibir_promociones boolean
+  genero varchar
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuarios_id int [ref: > Usuarios.id] //revisar 
+}
+
+//biometricos
+
+Table datos_contacto {
+  id int [pk, increment]
+  cliente_id int [ref: > clientes.id]
+  Tipo varchar //Correo, telefono, celular, fb etc
+  valor varchar
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuarios_id int [ref: > Usuarios.id]
+}
+
+//clientes
+Table caracteristicas{
+  id int [pk, increment]
+  nombre text
+  tipo_dato text
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuarios_id int [ref: > Usuarios.id]
+  empresa_id int [ref: > empresas.id]
+}
+
+Table datos_adicionales {
+  id int [pk, increment]
+  id_caracteristica int [ref: > caracteristicas.id]
+  cliente_id int [ref: > clientes.id]
+  Campo varchar // tipo de Sangre, Estado Civil, clasificacion, etc
+  Valor varchar
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuarios_id int [ref: > Usuarios.id]
+}
+
+Table convenios {
+  id int [pk, increment]
+  cliente_id int [ref: > clientes.id]
+  empresa_id int [ref: > empresas.id]
+  empresa_convenio varchar
+  telefono_oficina varchar
+  medio_entero varchar
+  tipo_cliente varchar
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuarios_id int [ref: > Usuarios.id]
+}
+
+Table datos_fiscales {
+  id int [pk, increment]
+  cliente_id int [ref: > clientes.id]
+  rfc varchar
+  razon_social varchar
+  persona varchar
+  codigo_postal varchar
+  regimen_fiscal varchar
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuarios_id int [ref: > Usuarios.id]
+}
+
+table Usuarios_Empresa{
+  empresa_id int [ref: > empresas.id]
+  Usuario_id int [ref: > Usuarios.id]
+  fecha_Alta date
+  Fecha_Baja date
+}
+
+// empleados 
+Table Usuarios {
+  id int [pk, increment]
+  empresa_id int [ref: > empresas.id]
+  nombre varchar
+  apellido varchar
+  cargo varchar
+  dias_trabajo varchar
+  horario_entrada time
+  horario_salida time
+  fecha_contratacion date
+  correo varchar
+  codigo_postal varchar
+  telefono varchar
+  fecha_nacimiento date
+  numero_seguro varchar
+  domicilio text
+  notas text
+  usuario text 
+  contraseña text
+  ultimo_acceso datetime
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+}
+
+Table asistencia_empleados {
+  id int [pk, increment]
+  Usuarios_id int [ref: > Usuarios.id]
+  tipo_acceso varchar
+  fecha date
+  hora time
+}
+
+Table planes {
+  id int [pk, increment]
+  empresa_id int [ref: > empresas.id]
+  nombre varchar
+  descripcion text
+  acceso_multisucursal boolean
+  tipo_plan varchar
+  preventa boolean
+  desde date
+  hasta date
+  visitas_gratis int
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+Table precios_planes {
+  id int [pk, increment]
+  plan_id int [ref: > planes.id]
+  esquema varchar // individual, grupal, empresa
+  tipo varchar // mensual, semanal, sesiones
+  precio decimal
+  numero_visitas int // si es 0 no las cuenta
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+Table restricciones_planes {
+  id int [pk, increment]
+  plan_id int [ref: > planes.id]
+  dia varchar
+  hora_inicio time
+  hora_fin time
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+Table codigos_descuento {
+  id int [pk, increment]
+  empresa_id int [ref: > empresas.id]
+  codigo varchar
+  descuento decimal
+  tipo_descuento varchar // porcentaje o monto
+  cantidad int
+  restantes int
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+table Planes_Servicios {
+  id int [pk, increment]
+  Servicio_id int [ref: > Servicios.id]
+  Usuario_id int [ref: > Usuarios.id]
+  plan_id int [ref: > planes.id]
+  precio varchar
+  icono varchar
+  Fecha_Baja datetime
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+
+}
+
+table Servicios {
+  id int [pk, increment]
+  Nombre_Servicio varchar
+  Descripcion Varchar
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+}
+
+table beneficios_Servicios {
+  id int [pk, increment]
+  Servicio_id int [ref: > Beneficios.id]
+  Usuario_id int [ref: > Usuarios.id]
+  plan_id int [ref: > planes.id]
+  vigencia_inicio datetime
+  vigencia_fin datetime
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+}
+
+table Beneficios {
+  id int [pk, increment]
+  Nombre_beneficio varchar
+  Descripcion Varchar
+  tipo_descuento varchar
+  valor decimal
+  unidad int
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+
+}
+
+
+
+Table disciplinas {
+  id int [pk, increment]
+  nombre varchar
+  instructor varchar // ligado usuario
+  limite_personas int // 0 no hay limite
+  recomendaciones text
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+
+}
+
+Table disciplinas_plan {
+  id int [pk, increment]
+  plan_id int [ref: > planes.id]
+  disciplina_id int [ref: > disciplinas.id]
+  tipo_acceso varchar
+  numero_accesos int
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+Table horarios_disciplinas {
+  id int [pk, increment]
+  disciplina_id int [ref: > disciplinas.id]
+  hora_inicio time
+  hora_fin time
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+Table alta_plan {
+  id int [pk, increment]
+  empresa_id int [ref: > empresas.id]
+  sucursal_id int [ref: > sucursales.id]
+  cliente_id int [ref: > clientes.id]
+  plan_id int [ref: > planes.id]
+  Fecha_alta date
+  fecha_vencimiento date
+  renovacion boolean
+  Usuario_id int [ref: > Usuarios.id]
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+}
+
+Table accesos {
+  id int [pk, increment]
+  cliente_id int [ref: > clientes.id]
+  empresa_id int [ref: > empresas.id]
+  tipo_acceso varchar // entrada/salida
+  sucursal varchar
+  puerta varchar
+  temperatura float
+  fecha datetime
+}
+
+Table almacen {
+  id int [pk, increment]
+  empresa_id int [ref: > empresas.id]
+  nombre varchar
+  descripcion text
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+Table categorias_producto {
+  id int [pk, increment]
+  empresa_id int [ref: > empresas.id]
+  nombre varchar
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+
+
+Table productos {
+  id int [pk, increment]
+  categoria_id int [ref: > categorias_producto.id]
+  empresa_id int [ref: > empresas.id]
+  nombre varchar
+  descripcion text
+  codigo_barras varchar
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+Table movimientos_productos {
+  id int [pk, increment]
+  producto_id int [ref: > productos.id]
+  tipo_movimiento varchar // alta/baja/modificación
+  // agregar almacen
+  cantidad int
+  fecha datetime
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+Table ventas {
+  id int [pk, increment]
+  cliente_id int [ref: > Usuarios.id]
+  empresa_id int [ref: > empresas.id]
+  fecha datetime
+  importe decimal
+  metodo_pago varchar
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+Table detalle_venta {
+  id int [pk, increment]
+  venta_id int [ref: > ventas.id]
+  tipo_plan int [ref: > planes.id] // puede ser nulo
+  producto_id int [ref: > productos.id] //puede ser nulo
+  codigo_descuento_id int [ref: > codigos_descuento.id]
+  cantidad int
+  importe decimal
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+Table proveedores {
+  id int [pk, increment]
+  nombre varchar
+  empresa_id int [ref: > empresas.id]
+  telefono varchar
+  correo varchar
+  direccion text
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+Table categorias_egresos {
+  id int [pk, increment]
+  empresa_id int [ref: > empresas.id]
+  nombre varchar
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}
+
+Table egresos {
+  id int [pk, increment]
+  empresa_id int [ref: > empresas.id]
+  concepto varchar
+  proveedor_id int [ref: > proveedores.id]
+  total decimal
+  fecha datetime
+  forma_pago varchar
+  descripcion text
+  sucursal varchar
+  categoria_id int [ref: > categorias_egresos.id]
+  created_by datetime
+  updated_by datetime
+  is_active boolean
+  Usuario_id int [ref: > Usuarios.id]
+}

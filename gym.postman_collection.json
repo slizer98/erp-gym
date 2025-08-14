@@ -1,5 +1,10 @@
 {
-	
+	"info": {
+		"_postman_id": "54ca21a7-af26-4b01-a0a9-95ddd44f792d",
+		"name": "gym",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "47278106"
+	},
 	"item": [
 		{
 			"name": "Generate token",
@@ -1023,6 +1028,148 @@
 					"path": [
 						"planes",
 						"restricciones",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create codigos-descuento",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzk4ODU0LCJpYXQiOjE3NTQ3OTUyNTQsImp0aSI6IjEwYTU3ZWNiNDIwYjQ5M2RiOWJmOTUwZDgyYjBjMjMyIiwidXNlcl9pZCI6MX0.tk5YoaTmfnFxGVs4YPijbJU8161O1H2u1o1Fhvg70pM",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"empresa\": 1,\r\n  \"codigo\": \"PROMO15\",\r\n  \"descuento\": \"15.0\",\r\n  \"tipo_descuento\": \"porcentaje\",\r\n  \"cantidad\": 100,\r\n  \"usuario\": 1\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{url_gym}}/ventas/codigos-descuento/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"ventas",
+						"codigos-descuento",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "ventas/codigos-descuento/validar/?empresa=1&codigo=PROMO15&total=1200.00",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzk4ODU0LCJpYXQiOjE3NTQ3OTUyNTQsImp0aSI6IjEwYTU3ZWNiNDIwYjQ5M2RiOWJmOTUwZDgyYjBjMjMyIiwidXNlcl9pZCI6MX0.tk5YoaTmfnFxGVs4YPijbJU8161O1H2u1o1Fhvg70pM",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url_gym}}/ventas/codigos-descuento/validar/?empresa=1&codigo=PROMO15&total=1200.00",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"ventas",
+						"codigos-descuento",
+						"validar",
+						""
+					],
+					"query": [
+						{
+							"key": "empresa",
+							"value": "1"
+						},
+						{
+							"key": "codigo",
+							"value": "PROMO15"
+						},
+						{
+							"key": "total",
+							"value": "1200.00"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "codigos-descuento/1/canjear/",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU0Nzk4ODU0LCJpYXQiOjE3NTQ3OTUyNTQsImp0aSI6IjEwYTU3ZWNiNDIwYjQ5M2RiOWJmOTUwZDgyYjBjMjMyIiwidXNlcl9pZCI6MX0.tk5YoaTmfnFxGVs4YPijbJU8161O1H2u1o1Fhvg70pM",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{url_gym}}/ventas/codigos-descuento/1/canjear/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"ventas",
+						"codigos-descuento",
+						"1",
+						"canjear",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get info perfil",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzU1MTMyMjE0LCJpYXQiOjE3NTUxMjg2MTQsImp0aSI6ImE2YTYwMjY1MThiYzQ2NjRhMDg1ODY0Y2QzYWEyZGMwIiwidXNlcl9pZCI6MX0.fsY35AZVO0egLdxohrGKrk5UdcBnLbYIuyOB7UTrsyI",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{url_gym}}/accounts/perfil/",
+					"host": [
+						"{{url_gym}}"
+					],
+					"path": [
+						"accounts",
+						"perfil",
 						""
 					]
 				}
