@@ -1,7 +1,7 @@
 from django.db import models
 from django.conf import settings
 from core.models import TimeStampedModel
-from empresas.models import Empresa
+from empresas.models import Empresa, Sucursal
 
 class Plan(TimeStampedModel):
     """
@@ -103,3 +103,156 @@ class RestriccionPlan(TimeStampedModel):
 
     def __str__(self):
         return f"{self.plan} - {self.dia} ({self.hora_inicio} - {self.hora_fin})"
+
+class Servicio(TimeStampedModel):
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name="servicios", verbose_name="Empresa")
+    nombre = models.CharField("Nombre del servicio", max_length=255)
+    descripcion = models.TextField("Descripción", blank=True)
+
+    class Meta:
+        verbose_name = "Servicio"
+        verbose_name_plural = "Servicios"
+        indexes = [models.Index(fields=["empresa", "nombre"])]
+
+    def __str__(self):
+        return self.nombre
+
+
+class Beneficio(TimeStampedModel):
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name="beneficios", verbose_name="Empresa")
+    nombre = models.CharField("Nombre del beneficio", max_length=255)
+    descripcion = models.TextField("Descripción", blank=True)
+    tipo_descuento = models.CharField("Tipo de descuento", max_length=50, blank=True)  # p.ej. porcentaje/monto
+    valor = models.DecimalField("Valor", max_digits=10, decimal_places=2, default=0)
+    unidad = models.IntegerField("Unidad", default=0, help_text="Uso libre; 0 si no aplica")
+
+    class Meta:
+        verbose_name = "Beneficio"
+        verbose_name_plural = "Beneficios"
+        indexes = [models.Index(fields=["empresa", "nombre"])]
+
+    def __str__(self):
+        return self.nombre
+
+
+# === Relación Plan – Servicio ===
+class PlanServicio(TimeStampedModel):
+    plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name="servicios_incluidos", verbose_name="Plan")
+    servicio = models.ForeignKey(Servicio, on_delete=models.PROTECT, related_name="en_planes", verbose_name="Servicio")
+    precio = models.DecimalField("Precio", max_digits=10, decimal_places=2, default=0)
+    icono = models.CharField("Icono", max_length=120, blank=True)
+    fecha_baja = models.DateTimeField("Fecha de baja", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Servicio del plan"
+        verbose_name_plural = "Servicios del plan"
+        unique_together = ("plan", "servicio")
+        indexes = [models.Index(fields=["plan", "servicio"])]
+
+    def __str__(self):
+        return f"{self.plan} - {self.servicio}"
+
+
+# === Relación Plan – Beneficio ===
+class PlanBeneficio(TimeStampedModel):
+    plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name="beneficios_incluidos", verbose_name="Plan")
+    beneficio = models.ForeignKey(Beneficio, on_delete=models.PROTECT, related_name="en_planes", verbose_name="Beneficio")
+    vigencia_inicio = models.DateTimeField("Vigencia inicio", null=True, blank=True)
+    vigencia_fin = models.DateTimeField("Vigencia fin", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Beneficio del plan"
+        verbose_name_plural = "Beneficios del plan"
+        unique_together = ("plan", "beneficio")
+        indexes = [models.Index(fields=["plan", "beneficio"])]
+
+    def __str__(self):
+        return f"{self.plan} - {self.beneficio}"
+
+
+# === Disciplinas ===
+class Disciplina(TimeStampedModel):
+    empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name="disciplinas", verbose_name="Empresa")
+    nombre = models.CharField("Nombre", max_length=255)
+    instructor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="disciplinas_impartidas", verbose_name="Instructor"
+    )
+    limite_personas = models.IntegerField("Límite de personas", default=0, help_text="0 = sin límite")
+    recomendaciones = models.TextField("Recomendaciones", blank=True)
+
+    class Meta:
+        verbose_name = "Disciplina"
+        verbose_name_plural = "Disciplinas"
+        indexes = [models.Index(fields=["empresa", "nombre"])]
+
+    def __str__(self):
+        return self.nombre
+
+
+class DisciplinaPlan(TimeStampedModel):
+    plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name="disciplinas", verbose_name="Plan")
+    disciplina = models.ForeignKey(Disciplina, on_delete=models.PROTECT, related_name="en_planes", verbose_name="Disciplina")
+    tipo_acceso = models.CharField("Tipo de acceso", max_length=50, blank=True)  # 'ilimitado', 'bolsa', etc.
+    numero_accesos = models.IntegerField("Número de accesos", default=0)
+
+    class Meta:
+        verbose_name = "Disciplina por plan"
+        verbose_name_plural = "Disciplinas por plan"
+        unique_together = ("plan", "disciplina")
+        indexes = [models.Index(fields=["plan", "disciplina"])]
+
+    def __str__(self):
+        return f"{self.plan} - {self.disciplina}"
+
+
+class HorarioDisciplina(TimeStampedModel):
+    disciplina = models.ForeignKey(Disciplina, on_delete=models.CASCADE, related_name="horarios", verbose_name="Disciplina")
+    hora_inicio = models.TimeField("Hora inicio")
+    hora_fin = models.TimeField("Hora fin")
+
+    class Meta:
+        verbose_name = "Horario de disciplina"
+        verbose_name_plural = "Horarios de disciplina"
+        indexes = [models.Index(fields=["disciplina", "hora_inicio", "hora_fin"])]
+
+    def __str__(self):
+        return f"{self.disciplina} [{self.hora_inicio}-{self.hora_fin}]"
+
+
+# === Alta de plan a cliente ===
+class AltaPlan(TimeStampedModel):
+    empresa = models.ForeignKey(Empresa, on_delete=models.PROTECT, related_name="altas_plan", verbose_name="Empresa")
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.PROTECT, related_name="altas_plan", verbose_name="Sucursal")
+    cliente = models.ForeignKey("clientes.Cliente", on_delete=models.PROTECT, related_name="altas_plan", verbose_name="Cliente")
+    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name="altas", verbose_name="Plan")
+    fecha_alta = models.DateField("Fecha de alta")
+    fecha_vencimiento = models.DateField("Fecha de vencimiento", null=True, blank=True)
+    renovacion = models.BooleanField("Renovación automática", default=False)
+
+    class Meta:
+        verbose_name = "Alta de plan"
+        verbose_name_plural = "Altas de plan"
+        indexes = [models.Index(fields=["empresa", "sucursal", "cliente", "plan"])]
+
+    def __str__(self):
+        return f"{self.cliente} -> {self.plan} ({self.fecha_alta})"
+
+
+# === Accesos ===
+class Acceso(TimeStampedModel):
+    cliente = models.ForeignKey("clientes.Cliente", on_delete=models.PROTECT, related_name="accesos", verbose_name="Cliente")
+    empresa = models.ForeignKey(Empresa, on_delete=models.PROTECT, related_name="accesos", verbose_name="Empresa")
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.PROTECT, related_name="accesos", verbose_name="Sucursal")
+    tipo_acceso = models.CharField("Tipo de acceso", max_length=20)  # 'entrada' / 'salida'
+    puerta = models.CharField("Puerta", max_length=120, blank=True)
+    temperatura = models.FloatField("Temperatura", null=True, blank=True)
+    fecha = models.DateTimeField("Fecha/Hora de acceso")
+
+    class Meta:
+        verbose_name = "Acceso"
+        verbose_name_plural = "Accesos"
+        indexes = [models.Index(fields=["empresa", "sucursal", "cliente", "fecha"])]
+
+    def __str__(self):
+        return f"{self.cliente} {self.tipo_acceso} {self.fecha}"
