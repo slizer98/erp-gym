@@ -1,28 +1,64 @@
 from empleados.models import UsuarioEmpresa
 
+# core/mixins.py
 class CompanyScopedQuerysetMixin:
     """
-    Limita los querysets a la(s) empresa(s) del usuario.
-    Requiere que el modelo tenga un FK llamado 'empresa' o que el viewset
-    defina 'company_fk_name' para indicar el nombre real del FK.
+    Scope por empresa:
+      - SUPERUSER: respeta X-Empresa-Id si viene; si no, usa asignaciones.
+      - NO SUPERUSER: ignora el header y usa empresa_activa (o asignaciones).
+    Permite FK directo (company_fk_name) o path relacionado (company_filter_path).
     """
     company_fk_name = "empresa"
+    company_filter_path = None
 
-    def get_user_companies(self):
-        return self.request.user.asignaciones_empresa.values_list("empresa_id", flat=True)
+    def _user_companies(self):
+        try:
+            return list(self.request.user.asignaciones_empresa.values_list("empresa_id", flat=True))
+        except Exception:
+            return []
+
+    def _active_company_for_non_superuser(self):
+        # Usa empresa_activa del perfil si la tienes en el request.user,
+        # si no, cae a la primera asignación disponible.
+        emp = getattr(getattr(self.request.user, "empresa_activa", None), "id", None)
+        if emp:
+            return str(emp)
+        assigned = self._user_companies()
+        return str(assigned[0]) if assigned else None
+
+    def get_active_company_id(self):
+        user = self.request.user
+        is_su = bool(getattr(user, "is_superuser", False))
+
+        if is_su:
+            # Solo superusuario puede cambiar empresa por header
+            emp_id = self.request.headers.get("X-Empresa-Id") or self.request.META.get("HTTP_X_EMPRESA_ID")
+            if emp_id:
+                return str(emp_id)
+            # fallback: cualquier asignación
+            assigned = self._user_companies()
+            return str(assigned[0]) if assigned else None
+
+        # Usuarios normales: ignorar header y usar su empresa activa
+        return self._active_company_for_non_superuser()
 
     def filter_queryset_by_company(self, qs):
-        companies = list(self.get_user_companies())
-        if not companies:
+        active_id = self.get_active_company_id()
+        path = self.company_filter_path or self.company_fk_name
+        # ¿tiene FK directo?
+        has_direct_fk = any(f.name == self.company_fk_name for f in qs.model._meta.get_fields())
+
+        if not active_id:
             return qs.none()
-        fk = self.company_fk_name
-        if fk in [f.name for f in qs.model._meta.get_fields()]:
-            return qs.filter(**{f"{fk}_id__in": companies})
-        return qs
+
+        if self.company_filter_path or has_direct_fk:
+            return qs.filter(**{f"{path}_id": active_id})
+        return qs.filter(**{f"{path}": active_id})
 
     def get_queryset(self):
         qs = super().get_queryset()
         return self.filter_queryset_by_company(qs)
+
 
 
 # core/mixins.py (nuevo)

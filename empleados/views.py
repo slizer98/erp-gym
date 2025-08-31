@@ -1,8 +1,9 @@
 from rest_framework import viewsets, permissions
 from .models import UsuarioEmpresa
 from .serializers import UsuarioEmpresaSerializer
+from core.mixins import CompanyScopedQuerysetMixin
 
-class UsuarioEmpresaViewSet(viewsets.ModelViewSet):
+class UsuarioEmpresaViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
     queryset = UsuarioEmpresa.objects.select_related("usuario", "empresa", "sucursal").all()
     serializer_class = UsuarioEmpresaSerializer
     permission_classes = [permissions.IsAuthenticated]

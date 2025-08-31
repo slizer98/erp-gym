@@ -90,7 +90,7 @@ class BeneficioViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
     serializer_class = BeneficioSerializer
 
 # Relaciones con Plan (scoped via plan.empresa)
-class PlanServicioViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
+class PlanServicioViewSet(BaseAuthViewSet):
     permission_classes = [IsAuthenticatedInCompany]
     queryset = PlanServicio.objects.select_related("plan", "plan__empresa", "servicio").all().order_by("id")
     serializer_class = PlanServicioSerializer
@@ -99,7 +99,7 @@ class PlanServicioViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
         emp_id = self.request.headers.get("X-Empresa-Id")
         return qs.filter(plan__empresa_id=emp_id) if emp_id else qs
 
-class PlanBeneficioViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
+class PlanBeneficioViewSet(BaseAuthViewSet):
     permission_classes = [IsAuthenticatedInCompany]
     queryset = PlanBeneficio.objects.select_related("plan", "plan__empresa", "beneficio").all().order_by("id")
     serializer_class = PlanBeneficioSerializer
@@ -115,7 +115,7 @@ class DisciplinaViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
     queryset = Disciplina.objects.select_related("empresa", "instructor").all().order_by("id")
     serializer_class = DisciplinaSerializer
 
-class DisciplinaPlanViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
+class DisciplinaPlanViewSet(BaseAuthViewSet):
     permission_classes = [IsAuthenticatedInCompany]
     queryset = DisciplinaPlan.objects.select_related("plan", "plan__empresa", "disciplina").all().order_by("id")
     serializer_class = DisciplinaPlanSerializer

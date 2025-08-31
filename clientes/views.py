@@ -4,7 +4,7 @@ from .serializers import ClienteSerializer,     DatoContactoSerializer, DatosFis
 from core.mixins import CompanyScopedQuerysetMixin, ReceptionBranchScopedByClienteMixin
 from core.permissions import IsAuthenticatedInCompany
 
-class ClienteViewSet(ReceptionBranchScopedByClienteMixin,viewsets.ModelViewSet):
+class ClienteViewSet(ReceptionBranchScopedByClienteMixin, viewsets.ModelViewSet):
     queryset = Cliente.objects.select_related("usuario").all().order_by("id")
     serializer_class = ClienteSerializer
     permission_classes = [permissions.IsAuthenticated]
