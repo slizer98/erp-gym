@@ -256,3 +256,43 @@ class Acceso(TimeStampedModel):
 
     def __str__(self):
         return f"{self.cliente} {self.tipo_acceso} {self.fecha}"
+      
+class ServicioBeneficio(TimeStampedModel):
+    """
+    Relación independiente entre un Servicio y un Beneficio.
+    Permite n beneficios por servicio, con vigencia opcional.
+    """
+    servicio = models.ForeignKey(
+        "planes.Servicio",  # ajusta al app_label real
+        on_delete=models.CASCADE,
+        related_name="beneficios_rel"
+    )
+    beneficio = models.ForeignKey(
+        "planes.Beneficio",  # ajusta al app_label real
+        on_delete=models.CASCADE,
+        related_name="servicios_rel"
+    )
+    vigencia_inicio = models.DateField(null=True, blank=True)
+    vigencia_fin = models.DateField(null=True, blank=True)
+    notas = models.TextField(blank=True)
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="servicio_beneficio_responsables"
+    )
+
+    class Meta:
+        verbose_name = "Beneficio de servicio"
+        verbose_name_plural = "Beneficios de servicio"
+        unique_together = ("servicio", "beneficio")  # evita duplicados
+
+    def clean(self):
+        # Validación: servicio.empresa == beneficio.empresa
+        if self.servicio_id and self.beneficio_id:
+            s_emp = getattr(self.servicio, "empresa_id", None)
+            b_emp = getattr(self.beneficio, "empresa_id", None)
+            if s_emp and b_emp and s_emp != b_emp:
+                from django.core.exceptions import ValidationError
+                raise ValidationError("El beneficio y el servicio deben pertenecer a la misma empresa.")
+
+    def __str__(self):
+        return f"{self.servicio} ↔ {self.beneficio}"

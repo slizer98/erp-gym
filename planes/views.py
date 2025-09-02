@@ -3,10 +3,10 @@ from core.mixins import CompanyScopedQuerysetMixin
 from core.permissions import IsAuthenticatedInCompany
 from .models import (Plan, PrecioPlan, RestriccionPlan, Servicio, Beneficio, 
                      PlanServicio, PlanBeneficio, Disciplina, DisciplinaPlan, HorarioDisciplina,
-                     AltaPlan, Acceso)
+                     AltaPlan, Acceso, ServicioBeneficio)
 from .serializers import (PlanSerializer, PrecioPlanSerializer, RestriccionPlanSerializer, ServicioSerializer, BeneficioSerializer, PlanServicioSerializer, PlanBeneficioSerializer,
     DisciplinaSerializer, DisciplinaPlanSerializer, HorarioDisciplinaSerializer,
-    AltaPlanSerializer, AccesoSerializer)
+    AltaPlanSerializer, AccesoSerializer, ServicioBeneficioSerializer)
 
 class PlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
     queryset = Plan.objects.select_related("empresa", "usuario").all().order_by("-id")
@@ -145,3 +145,70 @@ class AccesoViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
     company_fk_name = "empresa"
     queryset = Acceso.objects.select_related("empresa", "sucursal", "cliente").all().order_by("-fecha")
     serializer_class = AccesoSerializer
+    
+
+class ServicioBeneficioViewSet(viewsets.ModelViewSet):
+    """
+    CRUD de la relación Servicio-Beneficio.
+    Scoping por empresa: X-Empresa-Id debe coincidir con servicio.empresa (o beneficio.empresa).
+    Filtros:
+      - ?servicio=<id>
+      - ?beneficio=<id>
+    """
+    permission_classes = [IsAuthenticatedInCompany]
+    serializer_class = ServicioBeneficioSerializer
+    queryset = ServicioBeneficio.objects.select_related(
+        "servicio", "servicio__empresa", "beneficio"
+    ).all().order_by("id")
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        emp_id = self.request.headers.get("X-Empresa-Id")
+        if emp_id:
+            qs = qs.filter(servicio__empresa_id=emp_id)
+        # filtros opcionales
+        servicio_id = self.request.query_params.get("servicio")
+        beneficio_id = self.request.query_params.get("beneficio")
+        if servicio_id:
+            qs = qs.filter(servicio_id=servicio_id)
+        if beneficio_id:
+            qs = qs.filter(beneficio_id=beneficio_id)
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)
+    """
+    CRUD de la relación Servicio-Beneficio.
+    Scoping por empresa: X-Empresa-Id debe coincidir con servicio.empresa (o beneficio.empresa).
+    Filtros:
+      - ?servicio=<id>
+      - ?beneficio=<id>
+    """
+    # permission_classes = [IsAuthenticatedInCompany]
+    serializer_class = ServicioBeneficioSerializer
+    queryset = ServicioBeneficio.objects.select_related(
+        "servicio", "servicio__empresa", "beneficio"
+    ).all().order_by("id")
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        emp_id = self.request.headers.get("X-Empresa-Id")
+        if emp_id:
+            qs = qs.filter(servicio__empresa_id=emp_id)
+        # filtros opcionales
+        servicio_id = self.request.query_params.get("servicio")
+        beneficio_id = self.request.query_params.get("beneficio")
+        if servicio_id:
+            qs = qs.filter(servicio_id=servicio_id)
+        if beneficio_id:
+            qs = qs.filter(beneficio_id=beneficio_id)
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+    def perform_update(self, serializer):
+        serializer.save(updated_by=self.request.user)

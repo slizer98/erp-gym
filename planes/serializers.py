@@ -3,7 +3,7 @@ from .models import (
     Plan, PrecioPlan, RestriccionPlan,
     Servicio, Beneficio, PlanServicio, PlanBeneficio,
     Disciplina, DisciplinaPlan, HorarioDisciplina,
-    AltaPlan, Acceso
+    AltaPlan, Acceso, ServicioBeneficio
 )
 
 class PlanSerializer(serializers.ModelSerializer):
@@ -212,3 +212,41 @@ class AccesoSerializer(serializers.ModelSerializer):
                   "sucursal", "sucursal_nombre", "tipo_acceso", "puerta", "temperatura", "fecha",
                   "is_active", "created_at", "updated_at", "created_by", "updated_by"]
         read_only_fields = ("created_at", "updated_at", "created_by", "updated_by")
+
+
+class ServicioBeneficioSerializer(serializers.ModelSerializer):
+    servicio_nombre = serializers.CharField(source="servicio.nombre", read_only=True)
+    beneficio_nombre = serializers.CharField(source="beneficio.nombre", read_only=True)
+    empresa = serializers.PrimaryKeyRelatedField(
+        source="servicio.empresa", read_only=True
+    )  # útil para filtrar/inspección
+
+    class Meta:
+        model = ServicioBeneficio
+        fields = [
+            "id",
+            "servicio", "servicio_nombre",
+            "beneficio", "beneficio_nombre",
+            "vigencia_inicio", "vigencia_fin",
+            "notas", "usuario",
+            "empresa",
+            "is_active", "created_at", "updated_at", "created_by", "updated_by",
+        ]
+        read_only_fields = ("created_at","updated_at","created_by","updated_by","empresa")
+
+    def validate(self, attrs):
+        servicio = attrs.get("servicio") or getattr(self.instance, "servicio", None)
+        beneficio = attrs.get("beneficio") or getattr(self.instance, "beneficio", None)
+        if servicio and beneficio:
+            s_emp = getattr(servicio, "empresa_id", None)
+            b_emp = getattr(beneficio, "empresa_id", None)
+            if s_emp and b_emp and s_emp != b_emp:
+                raise serializers.ValidationError("Servicio y beneficio deben pertenecer a la misma empresa.")
+        # Vigencia coherente
+        vi = attrs.get("vigencia_inicio") or getattr(self.instance, "vigencia_inicio", None)
+        vf = attrs.get("vigencia_fin") or getattr(self.instance, "vigencia_fin", None)
+        if vi and vf and vi > vf:
+            raise serializers.ValidationError("La vigencia de inicio no puede ser mayor a la vigencia fin.")
+        return attrs
+      
+      
