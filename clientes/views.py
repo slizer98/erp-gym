@@ -27,8 +27,15 @@ class BaseAuthViewSet(viewsets.ModelViewSet):
 
 
 class DatoContactoViewSet(ReceptionBranchScopedByClienteMixin, BaseAuthViewSet):
-    queryset = DatoContacto.objects.select_related("cliente").all()
     serializer_class = DatoContactoSerializer
+
+    def get_queryset(self):
+        qs = DatoContacto.objects.select_related("cliente").all()
+        cliente_id = self.request.query_params.get("cliente")
+        if cliente_id:
+            qs = qs.filter(cliente_id=cliente_id) 
+        return qs
+
 
 
 class DatosFiscalesViewSet(ReceptionBranchScopedByClienteMixin, BaseAuthViewSet):
@@ -53,7 +60,38 @@ class DatoAdicionalViewSet(ReceptionBranchScopedByClienteMixin, BaseAuthViewSet)
     serializer_class = DatoAdicionalSerializer
 
 
-class ClienteSucursalViewSet(CompanyScopedQuerysetMixin, ReceptionBranchScopedByClienteMixin,BaseAuthViewSet):
+# class ClienteSucursalViewSet(CompanyScopedQuerysetMixin, ReceptionBranchScopedByClienteMixin,BaseAuthViewSet):
+#     permission_classes = [IsAuthenticatedInCompany]
+#     queryset = ClienteSucursal.objects.select_related("cliente", "sucursal", "empresa").all()
+#     serializer_class = ClienteSucursalSerializer
+
+class ClienteSucursalViewSet(CompanyScopedQuerysetMixin,
+                             ReceptionBranchScopedByClienteMixin,
+                             BaseAuthViewSet):
     permission_classes = [IsAuthenticatedInCompany]
-    queryset = ClienteSucursal.objects.select_related("cliente", "sucursal", "empresa").all()
     serializer_class = ClienteSucursalSerializer
+    # filter_backends = [DjangoFilterBackend, OrderingFilter]
+    ordering_fields = ["id", "fecha_inicio", "fecha_fin", "sucursal__nombre"]
+    ordering = ["-id"]
+
+    def get_queryset(self):
+        qs = (ClienteSucursal.objects
+              .select_related("cliente", "sucursal", "empresa"))
+
+        empresa_id = getattr(getattr(self.request, "company", None), "id", None)
+        if empresa_id:
+            qs = qs.filter(empresa_id=empresa_id)
+
+        # Filtro por ?cliente=ID (usa *_id para entero)
+        cliente_id = self.request.query_params.get("cliente")
+        if cliente_id:
+            qs = qs.filter(cliente_id=cliente_id)
+
+        # Si más parámetros (p.ej. ?sucursal=ID):
+        sucursal_id = self.request.query_params.get("sucursal")
+        if sucursal_id:
+            qs = qs.filter(sucursal_id=sucursal_id)
+
+        qs = qs.distinct()
+
+        return qs

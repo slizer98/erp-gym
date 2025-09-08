@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db.models import Q
 from .models import (
     Plan, PrecioPlan, RestriccionPlan,
     Servicio, Beneficio, PlanServicio, PlanBeneficio,
@@ -60,48 +61,123 @@ class PrecioPlanSerializer(serializers.ModelSerializer):
 
 
 class RestriccionPlanSerializer(serializers.ModelSerializer):
-    plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
-    empresa = serializers.PrimaryKeyRelatedField(
-        source="plan.empresa", read_only=True
-    )
+    dia_display = serializers.SerializerMethodField()
 
     class Meta:
         model = RestriccionPlan
         fields = [
-            "id", "plan", "plan_nombre",
-            "dia", "hora_inicio", "hora_fin",
-            "usuario",
-            "empresa",
-            "is_active", "created_at", "updated_at", "created_by", "updated_by",
+            "id", "plan", "dia", "dia_display",
+            "hora_inicio", "hora_fin",
+            "is_active", "created_at", "updated_at",
+            "created_by", "updated_by",
         ]
-        read_only_fields = ("created_at", "updated_at", "created_by", "updated_by", "empresa")
+        read_only_fields = ("created_at", "updated_at", "created_by", "updated_by")
+
+    def get_dia_display(self, obj):
+        nombres = {1:"Lunes",2:"Martes",3:"Miércoles",4:"Jueves",5:"Viernes",6:"Sábado",7:"Domingo"}
+        return nombres.get(getattr(obj, "dia", None))
 
     def validate(self, attrs):
+        """
+        Opcional: valida que si se informan horas haya ambas y que no traslapen con otras del mismo día/plan.
+        """
+        dia = attrs.get("dia", getattr(self.instance, "dia", None))
+        plan = attrs.get("plan", getattr(self.instance, "plan", None))
         hi = attrs.get("hora_inicio", getattr(self.instance, "hora_inicio", None))
         hf = attrs.get("hora_fin", getattr(self.instance, "hora_fin", None))
+
+        if not dia or not plan:
+            return attrs
+
+        # Si una hora viene, deben venir ambas
+        if bool(hi) ^ bool(hf):
+            raise serializers.ValidationError({"hora_inicio": "Indica inicio y fin (o deja ambas vacías)"})
+
         if hi and hf and hi >= hf:
-            raise serializers.ValidationError("La hora de inicio debe ser menor que la hora de fin.")
+            raise serializers.ValidationError({"hora_inicio": "La hora de inicio debe ser menor que la hora fin"})
+
+        # Anti-traslape (si hay horas)
+        if hi and hf:
+            qs = RestriccionPlan.objects.filter(plan=plan, dia=dia)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            # traslape si (aStart < bEnd) && (bStart < aEnd)
+            overlap = qs.filter(Q(hora_inicio__lt=hf) & Q(hora_fin__gt=hi)).exists()
+            if overlap:
+                raise serializers.ValidationError({"hora_inicio": "Traslapa con otra restricción existente para ese día"})
         return attrs
 
 
 
 class ServicioSerializer(serializers.ModelSerializer):
     empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
+
     class Meta:
         model = Servicio
-        fields = ["id", "empresa", "empresa_nombre", "nombre", "descripcion",
-                  "is_active", "created_at", "updated_at", "created_by", "updated_by"]
-        read_only_fields = ("created_at", "updated_at", "created_by", "updated_by")
+        fields = [
+            "id", "empresa", "empresa_nombre",
+            "nombre", "descripcion", "icono",
+            "is_active", "created_at", "updated_at", "created_by", "updated_by",
+        ]
+        read_only_fields = ("created_at","updated_at","created_by","updated_by")
+        extra_kwargs = {
+            "empresa": {"required": False},
+            "descripcion": {"required": False, "allow_blank": True},
+            "icono": {"required": False, "allow_blank": True},
+        }
+
+    def validate_nombre(self, v):
+        v = (v or "").strip()
+        if not v:
+            raise serializers.ValidationError("El nombre es obligatorio.")
+        return v
 
 
 class BeneficioSerializer(serializers.ModelSerializer):
     empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
+
     class Meta:
         model = Beneficio
-        fields = ["id", "empresa", "empresa_nombre", "nombre", "descripcion",
-                  "tipo_descuento", "valor", "unidad",
-                  "is_active", "created_at", "updated_at", "created_by", "updated_by"]
+        fields = [
+            "id", "empresa", "empresa_nombre",
+            "nombre", "descripcion",
+            "tipo_descuento", "valor", "unidad",
+            "is_active", "created_at", "updated_at", "created_by", "updated_by",
+        ]
         read_only_fields = ("created_at", "updated_at", "created_by", "updated_by")
+        extra_kwargs = {
+            "empresa": {"required": False},          # la pondremos en el ViewSet si falta
+            "valor":   {"required": False, "allow_null": True},
+            "unidad":  {"required": False, "allow_null": True},
+            "descripcion": {"required": False, "allow_blank": True},
+        }
+
+    # Normalizaciones ligeras
+    def validate_nombre(self, v: str):
+        v = (v or "").strip()
+        if not v:
+            raise serializers.ValidationError("El nombre es obligatorio.")
+        return v
+
+    def validate_tipo_descuento(self, v: str):
+        v = (v or "").strip().lower()
+        # valores válidos en tu modelo: '', 'porcentaje', 'monto'
+        if v not in ("", "porcentaje", "monto"):
+            raise serializers.ValidationError("Tipo de descuento inválido.")
+        return v
+
+    def validate(self, data):
+        """
+        Reglas:
+        - si hay tipo_descuento -> valor es obligatorio (unidad sigue siendo opcional)
+        - si NO hay tipo_descuento -> ignoramos valor/unidad (el ViewSet/Frontend ya los limpia)
+        """
+        tipo = data.get("tipo_descuento", getattr(self.instance, "tipo_descuento", "")) or ""
+        if tipo in ("porcentaje", "monto"):
+            valor = data.get("valor", getattr(self.instance, "valor", None))
+            if valor in (None, ""):
+                raise serializers.ValidationError({"valor": "Indica el valor del descuento."})
+        return data
 
 
 class PlanServicioSerializer(serializers.ModelSerializer):

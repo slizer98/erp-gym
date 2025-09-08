@@ -108,6 +108,7 @@ class Servicio(TimeStampedModel):
     empresa = models.ForeignKey(Empresa, on_delete=models.CASCADE, related_name="servicios", verbose_name="Empresa")
     nombre = models.CharField("Nombre del servicio", max_length=255)
     descripcion = models.TextField("Descripción", blank=True)
+    icono = models.CharField(max_length=64, blank=True, default="", help_text="Nombre del ícono (ej. 'Dumbbell')")
 
     class Meta:
         verbose_name = "Servicio"

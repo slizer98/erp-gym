@@ -1,4 +1,6 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, filters
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.exceptions import ValidationError
 from core.mixins import CompanyScopedQuerysetMixin
 from core.permissions import IsAuthenticatedInCompany
 from .models import (Plan, PrecioPlan, RestriccionPlan, Servicio, Beneficio, 
@@ -47,23 +49,35 @@ class PrecioPlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
 
 
 class RestriccionPlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
-    queryset = (RestriccionPlan.objects
-                .select_related("plan", "plan__empresa", "usuario")
-                .all().order_by("-id"))
-    serializer_class = RestriccionPlanSerializer
+    """
+    Filtra por la empresa del plan: plan__empresa.
+    Permite ?plan=ID y cualquier otro filtro adicional que quieras añadir.
+    """
     permission_classes = [IsAuthenticatedInCompany]
+    serializer_class = RestriccionPlanSerializer
+
+    # clave: el mixin construye ...filter(plan__empresa_id=<company_id>)
+    company_fk_name = "plan__empresa"
+
+    queryset = (
+        RestriccionPlan.objects
+        .select_related("plan", "plan__empresa", "usuario")
+        .all()
+        .order_by("-id")
+    )
 
     def get_queryset(self):
-        qs = super().get_queryset()
-        empresas_usuario = self.request.user.asignaciones_empresa.values_list("empresa_id", flat=True)
-        return qs.filter(plan__empresa_id__in=empresas_usuario)
+        qs = super().get_queryset()  # aplica plan__empresa_id
+        plan_id = self.request.query_params.get("plan")
+        if plan_id:
+            qs = qs.filter(plan_id=plan_id)
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
 
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
-
 
 
 
@@ -80,15 +94,82 @@ class BaseAuthViewSet(viewsets.ModelViewSet):
 class ServicioViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
     permission_classes = [IsAuthenticatedInCompany]
     company_fk_name = "empresa"
-    queryset = Servicio.objects.select_related("empresa").all().order_by("id")
     serializer_class = ServicioSerializer
+    queryset = Servicio.objects.select_related("empresa").all()
+
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["nombre", "descripcion", "icono"]
+    filterset_fields = ["empresa", "is_active"]
+    ordering_fields = ["id", "nombre", "created_at"]
+    ordering = ["-id"]
+
+    def perform_create(self, serializer):
+        empresa = serializer.validated_data.get("empresa") or getattr(self.request.user, "empresa", None)
+        if not empresa:
+            raise ValidationError({"empresa": "Debe indicar la empresa."})
+        serializer.save(empresa=empresa, created_by=self.request.user, updated_by=self.request.user)
+
+    def perform_update(self, serializer):
+        if "empresa" in serializer.validated_data:
+            serializer.validated_data.pop("empresa", None)
+        super().perform_update(serializer)
 
 class BeneficioViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
+    """
+    Endpoints:
+      GET    /beneficios/
+      POST   /beneficios/
+      GET    /beneficios/{id}/
+      PATCH  /beneficios/{id}/
+      DELETE /beneficios/{id}/
+    """
     permission_classes = [IsAuthenticatedInCompany]
     company_fk_name = "empresa"
-    queryset = Beneficio.objects.select_related("empresa").all().order_by("id")
     serializer_class = BeneficioSerializer
 
+    queryset = (
+        Beneficio.objects
+        .select_related("empresa")
+        .all()
+        .order_by("-id")
+    )
+
+    # Filtros, búsqueda y orden
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["empresa", "tipo_descuento", "is_active"]
+    search_fields = ["nombre", "descripcion"]
+    ordering_fields = ["id", "nombre", "created_at", "updated_at"]
+    ordering = ["-id"]
+
+    def perform_create(self, serializer):
+        """
+        Híbrido:
+        - Si el front manda empresa en el payload, se usa esa.
+        - Si NO la manda, intentamos tomarla de self.request.user.empresa (ajusta si tu user se relaciona distinto).
+        - Si no hay forma de determinarla, levantamos error claro.
+        """
+        empresa = serializer.validated_data.get("empresa", None)
+
+        if not empresa:
+            # Ajusta esta línea según tu relación real de usuario->empresa
+            empresa = getattr(self.request.user, "empresa", None)
+
+        if not empresa:
+            raise ValidationError({"empresa": "Debe indicar la empresa."})
+
+        serializer.save(
+            empresa=empresa,
+            created_by=self.request.user,
+            updated_by=self.request.user,
+        )
+
+    def perform_update(self, serializer):
+        """
+        Impide cambiar la empresa en updates.
+        """
+        if "empresa" in serializer.validated_data:
+            serializer.validated_data.pop("empresa", None)
+        super().perform_update(serializer)
 # Relaciones con Plan (scoped via plan.empresa)
 class PlanServicioViewSet(BaseAuthViewSet):
     permission_classes = [IsAuthenticatedInCompany]

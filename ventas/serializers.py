@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import CodigoDescuento
+from .models import CodigoDescuento, Venta, DetalleVenta
+
 
 class CodigoDescuentoSerializer(serializers.ModelSerializer):
     empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
@@ -38,3 +39,33 @@ class CodigoDescuentoSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("La cantidad no puede ser negativa.")
 
         return attrs
+
+
+class DetalleVentaSerializer(serializers.ModelSerializer):
+    plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
+    producto_nombre = serializers.CharField(source="producto.nombre", read_only=True)
+    codigo = serializers.CharField(source="codigo_descuento.codigo", read_only=True)
+
+    class Meta:
+        model = DetalleVenta
+        fields = "__all__"
+        read_only_fields = ("created_at","updated_at","created_by","updated_by","is_active")
+
+    def validate(self, data):
+        # Debe tener plan o producto (al menos uno)
+        if not data.get("plan") and not data.get("producto"):
+            raise serializers.ValidationError("Debes indicar un plan o un producto.")
+        return data
+
+class VentaSerializer(serializers.ModelSerializer):
+    detalles = DetalleVentaSerializer(many=True, read_only=True)
+    cliente_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Venta
+        fields = "__all__"
+        read_only_fields = ("created_at","updated_at","created_by","updated_by","is_active")
+
+    def get_cliente_nombre(self, obj):
+        # ajusta si tu user tiene otros campos
+        return getattr(obj.cliente, "get_full_name", lambda: str(obj.cliente))()
