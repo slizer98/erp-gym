@@ -1,4 +1,5 @@
-from rest_framework import viewsets, permissions, decorators, response
+from django.db import transaction
+from rest_framework import viewsets, permissions, decorators, response, status
 from .models import Empresa, Sucursal, Configuracion, ValorConfiguracion
 from .serializers import EmpresaSerializer, SucursalSerializer, ConfiguracionSerializer, ValorConfiguracionSerializer
 from core.mixins import CompanyScopedQuerysetMixin
@@ -43,10 +44,9 @@ class ConfiguracionViewSet(viewsets.ModelViewSet):
 
 
 class ValorConfiguracionViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
-    """
-    CRUD de valores por empresa (scoped).
-    """
-    queryset = ValorConfiguracion.objects.select_related("empresa", "configuracion").all().order_by("id")
+    queryset = (ValorConfiguracion.objects
+                .select_related("empresa", "configuracion")
+                .all().order_by("id"))
     serializer_class = ValorConfiguracionSerializer
     permission_classes = [IsAuthenticatedInCompany]
     search_fields = ("configuracion__nombre", "empresa__nombre", "valor")
@@ -62,24 +62,20 @@ class ValorConfiguracionViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSe
 
     @decorators.action(detail=False, methods=["get"], url_path="por-empresa/(?P<empresa_id>[^/.]+)")
     def por_empresa(self, request, empresa_id=None):
-        """
-        Devuelve un diccionario {nombre_config: valor_parseado} para la empresa.
-        """
         qs = self.filter_queryset(self.get_queryset()).filter(empresa_id=empresa_id, is_active=True)
         data = {}
         for vc in qs:
             key = vc.configuracion.nombre
             tipo = (vc.configuracion.tipo_dato or "").strip().lower()
             val = vc.valor
-            # parseo ligero para entregar typed
             try:
-                if tipo in ("int", "integer"):
+                if tipo in ("int","integer"):
                     data[key] = int(val)
-                elif tipo in ("decimal", "float", "number"):
+                elif tipo in ("decimal","float","number"):
                     data[key] = float(val)
-                elif tipo in ("bool", "boolean"):
-                    data[key] = str(val).lower() in ("true", "1", "yes", "si")
-                elif tipo in ("json",):
+                elif tipo in ("bool","boolean"):
+                    data[key] = str(val).lower() in ("true","1","yes","si")
+                elif tipo == "json":
                     import json
                     data[key] = json.loads(val)
                 else:
@@ -87,3 +83,95 @@ class ValorConfiguracionViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSe
             except Exception:
                 data[key] = val
         return response.Response(data)
+
+    # ---- NUEVO: guardar/actualizar una clave ----
+    @decorators.action(detail=False, methods=["post"], url_path="upsert")
+    @transaction.atomic
+    def upsert(self, request):
+        """
+        body: { empresa: ID, nombre: 'ui.app_name', valor: 'Mi App' }
+        Crea Configuracion si no existe, y hace upsert del ValorConfiguracion.
+        """
+        empresa_id = request.data.get("empresa")
+        nombre     = request.data.get("nombre")
+        valor      = request.data.get("valor", "")
+
+        if not empresa_id or not nombre:
+            return response.Response(
+                {"detail": "empresa y nombre son requeridos"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Inferencia simple de tipo_dato por nombre
+        defaults_map = {
+            "ui.nav":              ("json", "JSON con el menú del sidebar"),
+            "ui.app_name":         ("text", "Nombre visible de la app"),
+            "ui.logo_url":         ("text", "URL del logo"),
+            "ui.primary":          ("text", "Color primario (hex)"),
+            "ui.secondary":        ("text", "Color secundario (hex)"),
+            "ui.dashboard.widgets":("json", "Listado de widgets del dashboard"),
+        }
+        tipo, desc = defaults_map.get(nombre, ("text", nombre))
+
+        cfg, _ = Configuracion.objects.get_or_create(
+            nombre=nombre,
+            defaults={"tipo_dato": tipo, "descripcion": desc}
+        )
+
+        vc, _created = ValorConfiguracion.objects.update_or_create(
+            empresa_id=empresa_id,
+            configuracion=cfg,
+            defaults={
+                "valor": str(valor),
+                "updated_by": request.user,
+                "created_by": request.user,
+                "is_active": True,
+            },
+        )
+        ser = self.get_serializer(vc)
+        return response.Response(ser.data, status=status.HTTP_200_OK)
+
+    # ---- NUEVO: guardar varias de una sola vez ----
+    @decorators.action(detail=False, methods=["post"], url_path="upsert-many")
+    @transaction.atomic
+    def upsert_many(self, request):
+        """
+        body: { empresa: ID, pares: [{nombre:'ui.app_name', valor:'X'}, ...] }
+        """
+        empresa_id = request.data.get("empresa")
+        pares = request.data.get("pares", [])
+        if not empresa_id or not isinstance(pares, list):
+            return response.Response({"detail": "empresa y pares[] requeridos"},
+                                     status=status.HTTP_400_BAD_REQUEST)
+
+        results = []
+        for p in pares:
+            nombre = p.get("nombre")
+            valor  = p.get("valor", "")
+            if not nombre:
+                continue
+            # mismos defaults del upsert normal
+            defaults_map = {
+                "ui.nav":              ("json", "JSON con el menú del sidebar"),
+                "ui.app_name":         ("text", "Nombre visible de la app"),
+                "ui.logo_url":         ("text", "URL del logo"),
+                "ui.primary":          ("text", "Color primario (hex)"),
+                "ui.secondary":        ("text", "Color secundario (hex)"),
+                "ui.dashboard.widgets":("json", "Listado de widgets del dashboard"),
+            }
+            tipo, desc = defaults_map.get(nombre, ("text", nombre))
+            cfg, _ = Configuracion.objects.get_or_create(
+                nombre=nombre, defaults={"tipo_dato": tipo, "descripcion": desc}
+            )
+            vc, _ = ValorConfiguracion.objects.update_or_create(
+                empresa_id=empresa_id, configuracion=cfg,
+                defaults={
+                    "valor": str(valor),
+                    "updated_by": request.user,
+                    "created_by": request.user,
+                    "is_active": True,
+                },
+            )
+            results.append(self.get_serializer(vc).data)
+
+        return response.Response(results, status=status.HTTP_200_OK)
