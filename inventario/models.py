@@ -35,6 +35,8 @@ class Producto(TimeStampedModel):
     nombre = models.CharField(max_length=255)
     descripcion = models.TextField(blank=True, default='')
     codigo_barras = models.CharField(max_length=64, blank=True, default='')
+    precio = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    iva_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
     class Meta:
         unique_together = (('empresa', 'nombre'),)
