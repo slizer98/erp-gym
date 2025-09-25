@@ -221,25 +221,6 @@ class HorarioDisciplina(TimeStampedModel):
         return f"{self.disciplina} [{self.hora_inicio}-{self.hora_fin}]"
 
 
-# === Alta de plan a cliente ===
-class AltaPlan(TimeStampedModel):
-    empresa = models.ForeignKey(Empresa, on_delete=models.PROTECT, related_name="altas_plan", verbose_name="Empresa")
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.PROTECT, related_name="altas_plan", verbose_name="Sucursal")
-    cliente = models.ForeignKey("clientes.Cliente", on_delete=models.PROTECT, related_name="altas_plan", verbose_name="Cliente")
-    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name="altas", verbose_name="Plan")
-    fecha_alta = models.DateField("Fecha de alta")
-    fecha_vencimiento = models.DateField("Fecha de vencimiento", null=True, blank=True)
-    renovacion = models.BooleanField("Renovación automática", default=False)
-
-    class Meta:
-        verbose_name = "Alta de plan"
-        verbose_name_plural = "Altas de plan"
-        indexes = [models.Index(fields=["empresa", "sucursal", "cliente", "plan"])]
-
-    def __str__(self):
-        return f"{self.cliente} -> {self.plan} ({self.fecha_alta})"
-
-
 # === Accesos ===
 class Acceso(TimeStampedModel):
     cliente = models.ForeignKey("clientes.Cliente", on_delete=models.PROTECT, related_name="accesos", verbose_name="Cliente")
@@ -297,3 +278,102 @@ class ServicioBeneficio(TimeStampedModel):
 
     def __str__(self):
         return f"{self.servicio} ↔ {self.beneficio}"
+      
+      
+# === La revisión inmutable del plan ===
+class PlanRevision(TimeStampedModel):
+    plan = models.ForeignKey(Plan, on_delete=models.CASCADE, related_name="revisiones")
+    version = models.PositiveIntegerField(help_text="Versión incremental del plan")
+    # Copias inmutables de campos del Plan:
+    nombre = models.CharField(max_length=255)
+    descripcion = models.TextField(blank=True)
+    acceso_multisucursal = models.BooleanField(default=False)
+    tipo_plan = models.CharField(max_length=50, blank=True)
+    preventa = models.BooleanField(default=False)
+    visitas_gratis = models.PositiveIntegerField(default=0)
+
+    # Vigencia (opcional pero útil si manejas periodos de publicación)
+    vigente_desde = models.DateField(null=True, blank=True)
+    vigente_hasta = models.DateField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("plan", "version")
+        indexes = [models.Index(fields=["plan", "version"])]
+
+    def __str__(self):
+        return f"{self.plan} v{self.version}"
+
+
+# === Precios congelados por revisión ===
+class PrecioPlanRevision(TimeStampedModel):
+    revision = models.ForeignKey(PlanRevision, on_delete=models.CASCADE, related_name="precios")
+    esquema = models.CharField(max_length=20, choices=PrecioPlan.Esquema.choices)
+    tipo = models.CharField(max_length=20, choices=PrecioPlan.Tipo.choices)
+    precio = models.DecimalField(max_digits=10, decimal_places=2)
+    numero_visitas = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = ("revision", "esquema", "tipo")
+        indexes = [models.Index(fields=["revision", "esquema", "tipo"])]
+
+
+class RestriccionPlanRevision(TimeStampedModel):
+    revision = models.ForeignKey(PlanRevision, on_delete=models.CASCADE, related_name="restricciones")
+    dia = models.CharField(max_length=20)
+    hora_inicio = models.TimeField(null=True, blank=True)
+    hora_fin = models.TimeField(null=True, blank=True)
+
+
+class PlanServicioRevision(TimeStampedModel):
+    revision = models.ForeignKey(PlanRevision, on_delete=models.CASCADE, related_name="servicios_incluidos")
+    servicio = models.ForeignKey(Servicio, on_delete=models.PROTECT)
+    precio = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    icono = models.CharField(max_length=120, blank=True)
+
+    class Meta:
+        unique_together = ("revision", "servicio")
+        indexes = [models.Index(fields=["revision", "servicio"])]
+
+
+class PlanBeneficioRevision(TimeStampedModel):
+    revision = models.ForeignKey(PlanRevision, on_delete=models.CASCADE, related_name="beneficios_incluidos")
+    beneficio = models.ForeignKey(Beneficio, on_delete=models.PROTECT)
+    vigencia_inicio = models.DateTimeField(null=True, blank=True)
+    vigencia_fin = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = ("revision", "beneficio")
+        indexes = [models.Index(fields=["revision", "beneficio"])]
+
+
+class DisciplinaPlanRevision(TimeStampedModel):
+    revision = models.ForeignKey(PlanRevision, on_delete=models.CASCADE, related_name="disciplinas")
+    disciplina = models.ForeignKey(Disciplina, on_delete=models.PROTECT)
+    tipo_acceso = models.CharField(max_length=50, blank=True)
+    numero_accesos = models.IntegerField(default=0)
+
+    class Meta:
+        unique_together = ("revision", "disciplina")
+        indexes = [models.Index(fields=["revision", "disciplina"])]
+        
+
+# === Alta de plan a cliente ===
+class AltaPlan(TimeStampedModel):
+    empresa = models.ForeignKey(Empresa, on_delete=models.PROTECT, related_name="altas_plan", verbose_name="Empresa")
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.PROTECT, related_name="altas_plan", verbose_name="Sucursal")
+    cliente = models.ForeignKey("clientes.Cliente", on_delete=models.PROTECT, related_name="altas_plan", verbose_name="Cliente")
+    plan = models.ForeignKey(Plan, on_delete=models.PROTECT, related_name="altas", verbose_name="Plan")
+    plan_revision = models.ForeignKey(PlanRevision, on_delete=models.PROTECT, related_name="altas", null=True, blank=True)
+    fecha_alta = models.DateField("Fecha de alta")
+    fecha_vencimiento = models.DateField("Fecha de vencimiento", null=True, blank=True)
+    fecha_limite_pago = models.DateField("Fecha límite de pago", null=True, blank=True, db_index=True, help_text="Vencimiento para liquidar esta alta/pedido.")
+    renovacion = models.BooleanField("Renovación automática", default=False)
+
+
+    class Meta:
+        verbose_name = "Alta de plan"
+        verbose_name_plural = "Altas de plan"
+        indexes = [models.Index(fields=["empresa", "sucursal", "cliente", "plan"])]
+
+    def __str__(self):
+        return f"{self.cliente} -> {self.plan} ({self.fecha_alta})"

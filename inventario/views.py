@@ -24,13 +24,24 @@ class BaseAuthViewSet(viewsets.ModelViewSet):
 
 class AlmacenViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
     permission_classes = [IsAuthenticatedInCompany]
-    queryset = Almacen.objects.select_related("empresa").all()
+    queryset = Almacen.objects.select_related("empresa", "sucursal").all()
     serializer_class = AlmacenSerializer
+
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["nombre", "descripcion"]
     ordering_fields = ["id", "nombre", "created_at"]
     ordering = ["-id"]
-    filterset_fields = ["empresa"]
+    filterset_fields = ["empresa", "sucursal", "is_active"]
+
+    # opcional: si tu mixin no fuerza empresa, aquí puedes hacerlo
+    def perform_create(self, serializer):
+        obj = serializer.save()
+        # Ya validado en serializer: sucursal.empresa == empresa
+        return obj
+
+    def perform_update(self, serializer):
+        obj = serializer.save()
+        return obj
 
 
 class CategoriaProductoViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):

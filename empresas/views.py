@@ -1,5 +1,6 @@
 from django.db import transaction
-from rest_framework import viewsets, permissions, decorators, response, status
+from rest_framework import viewsets, permissions, decorators, response, status, filters
+from django_filters.rest_framework import DjangoFilterBackend
 from .models import Empresa, Sucursal, Configuracion, ValorConfiguracion
 from .serializers import EmpresaSerializer, SucursalSerializer, ConfiguracionSerializer, ValorConfiguracionSerializer
 from core.mixins import CompanyScopedQuerysetMixin
@@ -18,11 +19,25 @@ class EmpresaViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
 
-class SucursalViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
+class SucursalViewSet(viewsets.ModelViewSet):
     queryset = Sucursal.objects.select_related("empresa").all().order_by("id")
     serializer_class = SucursalSerializer
-    permission_classes = [IsAuthenticatedInCompany]
     permission_classes = [IsAuth]
+
+    # ✅ Habilita filtro por empresa y búsqueda
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["empresa", "is_active"]
+    search_fields = ["nombre", "direccion", "telefono", "correo", "responsable"]
+    ordering_fields = ["id", "nombre", "created_at"]
+    ordering = ["nombre"]
+
+    # Redundante si usas DjangoFilterBackend, pero útil como salvavidas
+    def get_queryset(self):
+        qs = super().get_queryset()
+        empresa_id = self.request.query_params.get("empresa")
+        if empresa_id:
+            qs = qs.filter(empresa_id=empresa_id)
+        return qs
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)

@@ -1,11 +1,13 @@
 from rest_framework import serializers
 from django.db.models import Q
+from django.utils.timezone import now
 from .models import (
     Plan, PrecioPlan, RestriccionPlan,
     Servicio, Beneficio, PlanServicio, PlanBeneficio,
     Disciplina, DisciplinaPlan, HorarioDisciplina,
     AltaPlan, Acceso, ServicioBeneficio
 )
+from .services import ensure_revision_for_date
 
 class PlanSerializer(serializers.ModelSerializer):
     empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
@@ -58,6 +60,23 @@ class PrecioPlanSerializer(serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError("El precio no puede ser negativo.")
         return value
+      
+    def _coerce_num_visitas_default(self, validated_data):
+        """
+        Normaliza numero_visitas a 0 si no viene, viene None o string vacío.
+        """
+        nv = validated_data.get("numero_visitas", None)
+        if nv in (None, "", "null"):
+            validated_data["numero_visitas"] = 0
+        return validated_data
+
+    def create(self, validated_data):
+        validated_data = self._coerce_num_visitas_default(validated_data)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data = self._coerce_num_visitas_default(validated_data)
+        return super().update(instance, validated_data)
 
 
 class RestriccionPlanSerializer(serializers.ModelSerializer):
@@ -259,10 +278,13 @@ class AltaPlanSerializer(serializers.ModelSerializer):
     sucursal_nombre = serializers.CharField(source="sucursal.nombre", read_only=True)
     cliente_nombre = serializers.CharField(source="cliente.__str__", read_only=True)
     plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
+    plan_revision_version = serializers.IntegerField(source="plan_revision.version", read_only=True)
+
     class Meta:
         model = AltaPlan
         fields = ["id", "empresa", "empresa_nombre", "sucursal", "sucursal_nombre",
                   "cliente", "cliente_nombre", "plan", "plan_nombre",
+                  "plan_revision", "plan_revision_version",
                   "fecha_alta", "fecha_vencimiento", "renovacion",
                   "is_active", "created_at", "updated_at", "created_by", "updated_by"]
         read_only_fields = ("created_at", "updated_at", "created_by", "updated_by")
@@ -277,6 +299,15 @@ class AltaPlanSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("El plan no pertenece a la empresa.")
         return attrs
 
+    def create(self, validated_data):
+        plan = validated_data["plan"]
+        fecha_alta = validated_data.get("fecha_alta") or now().date()
+
+        if not validated_data.get("plan_revision"):
+            rev = ensure_revision_for_date(plan, fecha_alta)
+            validated_data["plan_revision"] = rev
+
+        return super().create(validated_data)
 
 class AccesoSerializer(serializers.ModelSerializer):
     empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
@@ -326,3 +357,60 @@ class ServicioBeneficioSerializer(serializers.ModelSerializer):
         return attrs
       
       
+# --- REVISIONES (nuevos serializers) ---
+from .models import (
+    PlanRevision, PrecioPlanRevision, RestriccionPlanRevision,
+    PlanServicioRevision, PlanBeneficioRevision, DisciplinaPlanRevision
+)
+
+class PlanRevisionSerializer(serializers.ModelSerializer):
+    plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
+
+    class Meta:
+        model = PlanRevision
+        fields = [
+            "id", "plan", "plan_nombre", "version",
+            "nombre", "descripcion", "acceso_multisucursal", "tipo_plan",
+            "preventa", "visitas_gratis",
+            "vigente_desde", "vigente_hasta",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ("created_at", "updated_at")
+
+
+class PrecioPlanRevisionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PrecioPlanRevision
+        fields = ["id", "revision", "esquema", "tipo", "precio", "numero_visitas", "created_at", "updated_at"]
+        read_only_fields = ("created_at", "updated_at")
+
+
+class RestriccionPlanRevisionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RestriccionPlanRevision
+        fields = ["id", "revision", "dia", "hora_inicio", "hora_fin", "created_at", "updated_at"]
+        read_only_fields = ("created_at", "updated_at")
+
+
+class PlanServicioRevisionSerializer(serializers.ModelSerializer):
+    servicio_nombre = serializers.CharField(source="servicio.nombre", read_only=True)
+    class Meta:
+        model = PlanServicioRevision
+        fields = ["id", "revision", "servicio", "servicio_nombre", "precio", "icono", "created_at", "updated_at"]
+        read_only_fields = ("created_at", "updated_at")
+
+
+class PlanBeneficioRevisionSerializer(serializers.ModelSerializer):
+    beneficio_nombre = serializers.CharField(source="beneficio.nombre", read_only=True)
+    class Meta:
+        model = PlanBeneficioRevision
+        fields = ["id", "revision", "beneficio", "beneficio_nombre", "vigencia_inicio", "vigencia_fin", "created_at", "updated_at"]
+        read_only_fields = ("created_at", "updated_at")
+
+
+class DisciplinaPlanRevisionSerializer(serializers.ModelSerializer):
+    disciplina_nombre = serializers.CharField(source="disciplina.nombre", read_only=True)
+    class Meta:
+        model = DisciplinaPlanRevision
+        fields = ["id", "revision", "disciplina", "disciplina_nombre", "tipo_acceso", "numero_accesos", "created_at", "updated_at"]
+        read_only_fields = ("created_at", "updated_at")

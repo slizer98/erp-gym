@@ -1,17 +1,30 @@
 from django.db import models
 from django.conf import settings
-from core.models import TimeStampedModel  # tu clase base con auditoría
+from core.models import TimeStampedModel  # clase base con auditoría
+from django.core.exceptions import ValidationError
 
 class Almacen(TimeStampedModel):
     empresa = models.ForeignKey('empresas.Empresa', on_delete=models.CASCADE, related_name='almacenes')
+    sucursal = models.ForeignKey('empresas.Sucursal', on_delete=models.CASCADE, related_name='almacenes', null=True)
     nombre = models.CharField(max_length=255)
     descripcion = models.TextField(blank=True, default='')
 
     class Meta:
         verbose_name = 'Almacén'
         verbose_name_plural = 'Almacenes'
-        unique_together = ('empresa', 'nombre')
-        indexes = [models.Index(fields=['empresa', 'nombre'])]
+        unique_together = ('empresa', 'sucursal', 'nombre')
+        indexes = [
+            models.Index(fields=['empresa', 'sucursal', 'nombre']),
+            models.Index(fields=['sucursal', 'nombre']),
+        ]
+    def clean(self):
+        if self.sucursal and self.empresa_id != self.sucursal.empresa_id:
+            raise ValidationError("La sucursal no pertenece a la empresa seleccionada.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
 
     def __str__(self):
         return f'{self.nombre} (emp:{self.empresa_id})'

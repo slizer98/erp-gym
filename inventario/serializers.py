@@ -7,6 +7,13 @@ class AlmacenSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ("created_at", "updated_at", "created_by", "updated_by", "is_active")
 
+    def validate(self, attrs):
+        empresa = attrs.get('empresa') or getattr(self.instance, 'empresa', None)
+        sucursal = attrs.get('sucursal') or getattr(self.instance, 'sucursal', None)
+        if sucursal and empresa and sucursal.empresa_id != empresa.id:
+            raise serializers.ValidationError("La sucursal no pertenece a la empresa indicada.")
+        return attrs
+
 class CategoriaProductoSerializer(serializers.ModelSerializer):
     class Meta:
         model = CategoriaProducto

@@ -1,14 +1,31 @@
+from rest_framework.decorators import action
 from rest_framework import viewsets, permissions, filters
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Q
+from django.db import transaction
+from django.core.cache import cache
+from django.utils.timezone import now
 from rest_framework.exceptions import ValidationError
 from core.mixins import CompanyScopedQuerysetMixin
 from core.permissions import IsAuthenticatedInCompany
 from .models import (Plan, PrecioPlan, RestriccionPlan, Servicio, Beneficio, 
                      PlanServicio, PlanBeneficio, Disciplina, DisciplinaPlan, HorarioDisciplina,
-                     AltaPlan, Acceso, ServicioBeneficio)
+                     AltaPlan, Acceso, ServicioBeneficio, PlanRevision, PrecioPlanRevision, RestriccionPlanRevision,
+    PlanServicioRevision, PlanBeneficioRevision, DisciplinaPlanRevision)
 from .serializers import (PlanSerializer, PrecioPlanSerializer, RestriccionPlanSerializer, ServicioSerializer, BeneficioSerializer, PlanServicioSerializer, PlanBeneficioSerializer,
     DisciplinaSerializer, DisciplinaPlanSerializer, HorarioDisciplinaSerializer,
-    AltaPlanSerializer, AccesoSerializer, ServicioBeneficioSerializer)
+    AltaPlanSerializer, AccesoSerializer, ServicioBeneficioSerializer,
+    PlanRevisionSerializer, PrecioPlanRevisionSerializer, RestriccionPlanRevisionSerializer,
+    PlanServicioRevisionSerializer, PlanBeneficioRevisionSerializer, DisciplinaPlanRevisionSerializer
+)
+from .services import publish_plan_revision
+
+
+def _publish_after_commit(plan, vigente_desde=None, vigente_hasta=None):
+    @transaction.on_commit
+    def _do():
+        publish_plan_revision(plan, vigente_desde=vigente_desde or now().date(), vigente_hasta=vigente_hasta)
+
 
 class PlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
     queryset = Plan.objects.select_related("empresa", "usuario").all().order_by("-id")
@@ -21,10 +38,37 @@ class PlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
     ordering = ("-updated_at",)
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+        plan =serializer.save(created_by=self.request.user, updated_by=self.request.user)
+        # _schedule_auto_publish(plan)
 
     def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
+        plan = serializer.save(updated_by=self.request.user)
+        if plan.altas.exists():            # <— solo si ya hay clientes
+            _publish_after_commit(plan) 
+            
+    def perform_destroy(self, instance):
+        if instance.altas.exists():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError("No puedes eliminar este plan: tiene altas activas.")
+        super().perform_destroy(instance)
+    
+        
+    @action(detail=True, methods=["post"], url_path="publicar-revision")
+    def publicar_revision(self, request, pk=None):
+        """
+        Congela el estado actual del plan en una nueva PlanRevision y copia hijos.
+        Payload opcional:
+          - vigente_desde (YYYY-MM-DD)
+          - vigente_hasta (YYYY-MM-DD)
+        """
+        plan = self.get_object()
+        vigente_desde = request.data.get("vigente_desde") or None
+        vigente_hasta = request.data.get("vigente_hasta") or None
+
+        with transaction.atomic():
+            rev = publish_plan_revision(plan, vigente_desde=vigente_desde, vigente_hasta=vigente_hasta)
+
+        return Response(PlanRevisionSerializer(rev).data, status=201)
 
 
 class PrecioPlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
@@ -43,9 +87,26 @@ class PrecioPlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
+        
+    def perform_create(self, serializer):
+        obj = serializer.save(
+            usuario=self.request.user,            
+            created_by=self.request.user,
+            updated_by=self.request.user
+        )
+        if obj.plan.altas.exists():
+            _publish_after_commit(obj.plan)
 
     def perform_update(self, serializer):
-        serializer.save(updated_by=self.request.user)
+        obj = serializer.save(updated_by=self.request.user)
+        if obj.plan.altas.exists():
+            _publish_after_commit(obj.plan)
+
+    def perform_destroy(self, instance):
+        plan = instance.plan
+        super().perform_destroy(instance)
+        if plan.altas.exists():
+            _publish_after_commit(plan)
 
 
 class RestriccionPlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
@@ -293,3 +354,58 @@ class ServicioBeneficioViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
+        
+class PlanRevisionViewSet(CompanyScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticatedInCompany]
+    company_fk_name = "plan__empresa"
+    serializer_class = PlanRevisionSerializer
+    queryset = PlanRevision.objects.select_related("plan", "plan__empresa").all().order_by("-version")
+
+    # filtros: ?plan=<id> y/o ?vigentes_a=YYYY-MM-DD
+    def get_queryset(self):
+        qs = super().get_queryset()
+        plan_id = self.request.query_params.get("plan")
+        if plan_id:
+            qs = qs.filter(plan_id=plan_id)
+        vig = self.request.query_params.get("vigentes_a")
+        if vig:
+            qs = qs.filter(
+                Q(vigente_desde__isnull=True) | Q(vigente_desde__lte=vig),
+                Q(vigente_hasta__isnull=True) | Q(vigente_hasta__gte=vig)
+            )
+        return qs
+
+
+class PrecioPlanRevisionViewSet(CompanyScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticatedInCompany]
+    company_fk_name = "revision__plan__empresa"
+    serializer_class = PrecioPlanRevisionSerializer
+    queryset = PrecioPlanRevision.objects.select_related("revision", "revision__plan", "revision__plan__empresa").all()
+
+
+class RestriccionPlanRevisionViewSet(CompanyScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticatedInCompany]
+    company_fk_name = "revision__plan__empresa"
+    serializer_class = RestriccionPlanRevisionSerializer
+    queryset = RestriccionPlanRevision.objects.select_related("revision", "revision__plan", "revision__plan__empresa").all()
+
+
+class PlanServicioRevisionViewSet(CompanyScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticatedInCompany]
+    company_fk_name = "revision__plan__empresa"
+    serializer_class = PlanServicioRevisionSerializer
+    queryset = PlanServicioRevision.objects.select_related("revision", "revision__plan", "revision__plan__empresa", "servicio").all()
+
+
+class PlanBeneficioRevisionViewSet(CompanyScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticatedInCompany]
+    company_fk_name = "revision__plan__empresa"
+    serializer_class = PlanBeneficioRevisionSerializer
+    queryset = PlanBeneficioRevision.objects.select_related("revision", "revision__plan", "revision__plan__empresa", "beneficio").all()
+
+
+class DisciplinaPlanRevisionViewSet(CompanyScopedQuerysetMixin, viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticatedInCompany]
+    company_fk_name = "revision__plan__empresa"
+    serializer_class = DisciplinaPlanRevisionSerializer
+    queryset = DisciplinaPlanRevision.objects.select_related("revision", "revision__plan", "revision__plan__empresa", "disciplina").all()
