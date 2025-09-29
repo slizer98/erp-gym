@@ -1,7 +1,7 @@
 from rest_framework.decorators import action
 from rest_framework import viewsets, permissions, filters
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q
+from django.db.models import Q, Prefetch
 from django.db import transaction
 from django.core.cache import cache
 from django.utils.timezone import now
@@ -27,8 +27,56 @@ def _publish_after_commit(plan, vigente_desde=None, vigente_hasta=None):
         publish_plan_revision(plan, vigente_desde=vigente_desde or now().date(), vigente_hasta=vigente_hasta)
 
 
+# class PlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
+#     queryset = Plan.objects.select_related("empresa", "usuario").all().order_by("-id")
+#     serializer_class = PlanSerializer
+#     permission_classes = [IsAuthenticatedInCompany]
+#     company_fk_name = "empresa"
+
+#     search_fields = ("nombre", "tipo_plan", "descripcion")
+#     ordering_fields = ("id", "nombre", "desde", "hasta", "updated_at")
+#     ordering = ("-updated_at",)
+
+#     def perform_create(self, serializer):
+#         plan =serializer.save(created_by=self.request.user, updated_by=self.request.user)
+#         # _schedule_auto_publish(plan)
+
+#     def perform_update(self, serializer):
+#         plan = serializer.save(updated_by=self.request.user)
+#         if plan.altas.exists():            # <— solo si ya hay clientes
+#             _publish_after_commit(plan) 
+            
+#     def perform_destroy(self, instance):
+#         if instance.altas.exists():
+#             from rest_framework.exceptions import ValidationError
+#             raise ValidationError("No puedes eliminar este plan: tiene altas activas.")
+#         super().perform_destroy(instance)
+    
+        
+#     @action(detail=True, methods=["post"], url_path="publicar-revision")
+#     def publicar_revision(self, request, pk=None):
+#         """
+#         Congela el estado actual del plan en una nueva PlanRevision y copia hijos.
+#         Payload opcional:
+#           - vigente_desde (YYYY-MM-DD)
+#           - vigente_hasta (YYYY-MM-DD)
+#         """
+#         plan = self.get_object()
+#         vigente_desde = request.data.get("vigente_desde") or None
+#         vigente_hasta = request.data.get("vigente_hasta") or None
+
+#         with transaction.atomic():
+#             rev = publish_plan_revision(plan, vigente_desde=vigente_desde, vigente_hasta=vigente_hasta)
+
+#         return Response(PlanRevisionSerializer(rev).data, status=201)
+
 class PlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
-    queryset = Plan.objects.select_related("empresa", "usuario").all().order_by("-id")
+    queryset = (
+        Plan.objects
+            .select_related("empresa", "usuario")
+            .all()
+            .order_by("-id")
+    )
     serializer_class = PlanSerializer
     permission_classes = [IsAuthenticatedInCompany]
     company_fk_name = "empresa"
@@ -37,22 +85,41 @@ class PlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
     ordering_fields = ("id", "nombre", "desde", "hasta", "updated_at")
     ordering = ("-updated_at",)
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        include = self.request.query_params.get("include", "")
+
+        if "servicios" in include.split(","):
+            # Descubre el nombre correcto del related_name hacia Plan
+            accessor = PlanServicio._meta.get_field("plan").remote_field.get_accessor_name()
+            ps_qs = PlanServicio.objects.select_related("servicio").order_by("id")
+
+            qs = qs.prefetch_related(
+                Prefetch(
+                    accessor,                    # <- en lugar de 'planservicio_set'
+                    queryset=ps_qs,
+                    to_attr="_prefetched_planservicios",
+                )
+            )
+        return qs
+
     def perform_create(self, serializer):
-        plan =serializer.save(created_by=self.request.user, updated_by=self.request.user)
-        # _schedule_auto_publish(plan)
+        plan = serializer.save(
+            created_by=self.request.user,
+            updated_by=self.request.user
+        )
 
     def perform_update(self, serializer):
         plan = serializer.save(updated_by=self.request.user)
-        if plan.altas.exists():            # <— solo si ya hay clientes
-            _publish_after_commit(plan) 
-            
+        if plan.altas.exists():
+            _publish_after_commit(plan)
+
     def perform_destroy(self, instance):
         if instance.altas.exists():
             from rest_framework.exceptions import ValidationError
             raise ValidationError("No puedes eliminar este plan: tiene altas activas.")
         super().perform_destroy(instance)
-    
-        
+
     @action(detail=True, methods=["post"], url_path="publicar-revision")
     def publicar_revision(self, request, pk=None):
         """
@@ -66,10 +133,13 @@ class PlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
         vigente_hasta = request.data.get("vigente_hasta") or None
 
         with transaction.atomic():
-            rev = publish_plan_revision(plan, vigente_desde=vigente_desde, vigente_hasta=vigente_hasta)
+            rev = publish_plan_revision(
+                plan,
+                vigente_desde=vigente_desde,
+                vigente_hasta=vigente_hasta,
+            )
 
         return Response(PlanRevisionSerializer(rev).data, status=201)
-
 
 class PrecioPlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
     queryset = (PrecioPlan.objects

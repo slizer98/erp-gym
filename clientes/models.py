@@ -15,6 +15,8 @@ class Cliente(TimeStampedModel):
     recibo_pago = models.BooleanField("Enviar recibo de pago", default=False)
     recibir_promociones = models.BooleanField("Recibir promociones", default=True)
     genero = models.CharField("Género", max_length=20, blank=True)
+    fecha_limite_pago = models.DateField("Fecha límite de pago", null=True, blank=True, db_index=True)
+    esquema = models.CharField("Esquema", max_length=20, null=True)
     # Tu doc trae: Usuarios_id (revisar). Lo dejo como opcional por si quieres asignar un responsable/comercial.
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -94,7 +96,8 @@ class Convenio(TimeStampedModel):
         "clientes.Cliente",
         on_delete=models.CASCADE,
         related_name="convenios",
-        verbose_name="Cliente"
+        verbose_name="Cliente",
+        null=True, blank=True
     )
     empresa = models.ForeignKey(
         Empresa,

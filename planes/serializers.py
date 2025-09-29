@@ -9,9 +9,23 @@ from .models import (
 )
 from .services import ensure_revision_for_date
 
+
+class PlanServicioMiniSerializer(serializers.ModelSerializer):
+    servicio_nombre = serializers.CharField(source="servicio.nombre", read_only=True)
+    servicio_descripcion = serializers.CharField(source="servicio.descripcion", read_only=True)
+    icono = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PlanServicio
+        fields = ["id", "servicio", "servicio_nombre", "servicio_descripcion", "icono"]
+
+    def get_icono(self, obj):
+        return obj.icono or getattr(obj.servicio, "icono", "") or ""
+
 class PlanSerializer(serializers.ModelSerializer):
     empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
     usuario_nombre = serializers.CharField(source="usuario.get_full_name", read_only=True)
+    servicios = serializers.SerializerMethodField()
 
     class Meta:
         model = Plan
@@ -20,23 +34,67 @@ class PlanSerializer(serializers.ModelSerializer):
             "nombre", "descripcion", "acceso_multisucursal",
             "tipo_plan", "preventa", "desde", "hasta",
             "visitas_gratis", "usuario", "usuario_nombre",
+            "servicios",
             "is_active", "created_at", "updated_at", "created_by", "updated_by",
         ]
         read_only_fields = ("created_at", "updated_at", "created_by", "updated_by")
 
-    def validate(self, attrs):
-        desde = attrs.get("desde", getattr(self.instance, "desde", None))
-        hasta = attrs.get("hasta", getattr(self.instance, "hasta", None))
-        preventa = attrs.get("preventa", getattr(self.instance, "preventa", False))
+    def get_servicios(self, obj):
+        request = self.context.get("request")
+        if not request:
+            return []
+        include = request.query_params.get("include", "")
+        if "servicios" not in include.split(","):
+            return []
 
-        # Fechas coherentes
-        if desde and hasta and desde > hasta:
-            raise serializers.ValidationError("La fecha 'desde' no puede ser posterior a 'hasta'.")
+        # Usa el resultado prefetch (to_attr) si llegó, si no, fallback a query
+        prefetched = getattr(obj, "_prefetched_planservicios", None)
+        if prefetched is not None:
+            qs = prefetched
+        else:
+            qs = PlanServicio.objects.select_related("servicio").filter(plan_id=obj.id).order_by("id")
 
-        # Si es preventa, sugiere que existan fechas
-        if preventa and (not desde or not hasta):
-            raise serializers.ValidationError("Para planes en preventa, proporciona 'desde' y 'hasta'.")
-        return attrs
+        return PlanServicioMiniSerializer(qs, many=True, context=self.context).data
+
+# class PlanSerializer(serializers.ModelSerializer):
+#     empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
+#     usuario_nombre = serializers.CharField(source="usuario.get_full_name", read_only=True)
+
+#     class Meta:
+#         model = Plan
+#         fields = [
+#             "id", "empresa", "empresa_nombre",
+#             "nombre", "descripcion", "acceso_multisucursal",
+#             "tipo_plan", "preventa", "desde", "hasta",
+#             "visitas_gratis", "usuario", "usuario_nombre",
+#             "is_active", "created_at", "updated_at", "created_by", "updated_by",
+#         ]
+#         read_only_fields = ("created_at", "updated_at", "created_by", "updated_by")
+    
+#     def get_servicios(self, obj):
+#         request = self.context.get("request")
+#         if not request:
+#             return []
+#         include = request.query_params.get("include", "")
+#         if "servicios" not in include.split(","):
+#             return []
+#         # Si prefetchaste planservicios y servicio, no hará N+1
+#         qs = getattr(obj, "_prefetched_planservicios", None) or obj.planservicio_set.select_related("servicio").all()
+#         return PlanServicioMiniSerializer(qs, many=True, context=self.context).data
+
+#     def validate(self, attrs):
+#         desde = attrs.get("desde", getattr(self.instance, "desde", None))
+#         hasta = attrs.get("hasta", getattr(self.instance, "hasta", None))
+#         preventa = attrs.get("preventa", getattr(self.instance, "preventa", False))
+
+#         # Fechas coherentes
+#         if desde and hasta and desde > hasta:
+#             raise serializers.ValidationError("La fecha 'desde' no puede ser posterior a 'hasta'.")
+
+#         # Si es preventa, sugiere que existan fechas
+#         if preventa and (not desde or not hasta):
+#             raise serializers.ValidationError("Para planes en preventa, proporciona 'desde' y 'hasta'.")
+#         return attrs
 
 
 class PrecioPlanSerializer(serializers.ModelSerializer):
@@ -202,9 +260,10 @@ class BeneficioSerializer(serializers.ModelSerializer):
 class PlanServicioSerializer(serializers.ModelSerializer):
     plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
     servicio_nombre = serializers.CharField(source="servicio.nombre", read_only=True)
+    servicio_descripcion = serializers.CharField(source="servicio.descripcion", read_only=True)
     class Meta:
         model = PlanServicio
-        fields = ["id", "plan", "plan_nombre", "servicio", "servicio_nombre",
+        fields = ["id", "plan", "plan_nombre", "servicio", "servicio_nombre","servicio_descripcion",
                   "precio", "icono", "fecha_baja",
                   "is_active", "created_at", "updated_at", "created_by", "updated_by"]
         read_only_fields = ("created_at", "updated_at", "created_by", "updated_by")

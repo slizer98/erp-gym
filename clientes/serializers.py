@@ -48,11 +48,11 @@ class ConvenioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Convenio
         fields = [
-            "id", "cliente", "cliente_nombre", "empresa", "empresa_nombre",
-            "empresa_convenio", "telefono_oficina", "medio_entero", "tipo_cliente",
-            "is_active", "created_at", "updated_at", "created_by", "updated_by",
+            "id","cliente","cliente_nombre","empresa","empresa_nombre",
+            "empresa_convenio","telefono_oficina","medio_entero","tipo_cliente",
+            "is_active","created_at","updated_at","created_by","updated_by",
         ]
-        read_only_fields = ("created_at", "updated_at", "created_by", "updated_by")
+        read_only_fields = ("empresa","created_at","updated_at","created_by","updated_by")
 
 
 class CaracteristicaSerializer(serializers.ModelSerializer):

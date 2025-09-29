@@ -3,6 +3,7 @@ from .models import Cliente, DatoContacto, DatosFiscales, Convenio, Caracteristi
 from .serializers import ClienteSerializer,     DatoContactoSerializer, DatosFiscalesSerializer, ConvenioSerializer, CaracteristicaSerializer, DatoAdicionalSerializer, ClienteSucursalSerializer
 from core.mixins import CompanyScopedQuerysetMixin, ReceptionBranchScopedByClienteMixin
 from core.permissions import IsAuthenticatedInCompany
+from django.core.exceptions import ValidationError
 
 class ClienteViewSet(ReceptionBranchScopedByClienteMixin, viewsets.ModelViewSet):
     queryset = Cliente.objects.select_related("usuario").all().order_by("id")
@@ -39,14 +40,43 @@ class DatoContactoViewSet(ReceptionBranchScopedByClienteMixin, BaseAuthViewSet):
 
 
 class DatosFiscalesViewSet(ReceptionBranchScopedByClienteMixin, BaseAuthViewSet):
-    queryset = DatosFiscales.objects.select_related("cliente").all()
     serializer_class = DatosFiscalesSerializer
 
+    def get_queryset(self):
+        qs = DatosFiscales.objects.select_related("cliente").all()
+        cliente_id = self.request.query_params.get("cliente")
+        if cliente_id:
+            qs = qs.filter(cliente_id=cliente_id)
+        return qs
 
-class ConvenioViewSet(CompanyScopedQuerysetMixin, ReceptionBranchScopedByClienteMixin,BaseAuthViewSet):
+
+# views.py
+class ConvenioViewSet(CompanyScopedQuerysetMixin,
+                      ReceptionBranchScopedByClienteMixin,
+                      BaseAuthViewSet):
     permission_classes = [IsAuthenticatedInCompany]
-    queryset = Convenio.objects.select_related("cliente", "empresa").all()
     serializer_class = ConvenioSerializer
+    queryset = Convenio.objects.select_related("cliente","empresa").all()
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # CompanyScopedQuerysetMixin suele aplicar empresa por header; si no,
+        # asegúralo manualmente:
+        empresa_id = getattr(self.request, "empresa_id", None) or self.request.headers.get("X-Empresa-Id")
+        if empresa_id:
+            qs = qs.filter(empresa_id=empresa_id)
+
+        cliente = self.request.query_params.get("cliente")
+        if cliente:
+            qs = qs.filter(cliente_id=cliente)
+        return qs.order_by("-id")
+
+    def perform_create(self, serializer):
+        empresa_id = getattr(self.request, "empresa_id", None) or self.request.headers.get("X-Empresa-Id")
+        if not empresa_id:
+            raise ValidationError({"empresa": "Falta X-Empresa-Id en encabezado"})
+        serializer.save(empresa_id=empresa_id)
+
 
 
 class CaracteristicaViewSet(CompanyScopedQuerysetMixin,BaseAuthViewSet):

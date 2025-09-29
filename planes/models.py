@@ -19,7 +19,7 @@ class Plan(TimeStampedModel):
     desde = models.DateField("Vigente desde", null=True, blank=True)
     hasta = models.DateField("Vigente hasta", null=True, blank=True)
     visitas_gratis = models.PositiveIntegerField("Visitas gratis", default=0)
-
+    fecha_limite_pago = models.DateField("Fecha límite de pago", null=True, blank=True, db_index=True)
     # Tu tabla incluye Usuario_id aparte de auditoría; lo dejamos como “responsable” opcional:
     usuario = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
