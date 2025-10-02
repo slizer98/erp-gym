@@ -34,6 +34,7 @@ class PlanSerializer(serializers.ModelSerializer):
             "nombre", "descripcion", "acceso_multisucursal",
             "tipo_plan", "preventa", "desde", "hasta",
             "visitas_gratis", "usuario", "usuario_nombre",
+            "fecha_limite_pago", "costo_inscripcion",
             "servicios",
             "is_active", "created_at", "updated_at", "created_by", "updated_by",
         ]
@@ -99,9 +100,8 @@ class PlanSerializer(serializers.ModelSerializer):
 
 class PrecioPlanSerializer(serializers.ModelSerializer):
     plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
-    empresa = serializers.PrimaryKeyRelatedField(
-        source="plan.empresa", read_only=True
-    )  # útil para scoping de empresa en la vista
+    # Útil para inspección, pero read-only (derivado):
+    empresa = serializers.PrimaryKeyRelatedField(source="plan.empresa", read_only=True)
 
     class Meta:
         model = PrecioPlan
@@ -109,7 +109,7 @@ class PrecioPlanSerializer(serializers.ModelSerializer):
             "id", "plan", "plan_nombre",
             "esquema", "tipo", "precio", "numero_visitas",
             "usuario",
-            "empresa",  # read-only derivado del plan
+            "empresa",  # read-only (viene de plan)
             "is_active", "created_at", "updated_at", "created_by", "updated_by",
         ]
         read_only_fields = ("created_at", "updated_at", "created_by", "updated_by", "empresa")
@@ -118,7 +118,7 @@ class PrecioPlanSerializer(serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError("El precio no puede ser negativo.")
         return value
-      
+
     def _coerce_num_visitas_default(self, validated_data):
         """
         Normaliza numero_visitas a 0 si no viene, viene None o string vacío.
@@ -260,20 +260,17 @@ class BeneficioSerializer(serializers.ModelSerializer):
 class PlanServicioSerializer(serializers.ModelSerializer):
     plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
     servicio_nombre = serializers.CharField(source="servicio.nombre", read_only=True)
-    servicio_descripcion = serializers.CharField(source="servicio.descripcion", read_only=True)
+    servicio_icono = serializers.CharField(source="servicio.icono", read_only=True)
+
     class Meta:
         model = PlanServicio
-        fields = ["id", "plan", "plan_nombre", "servicio", "servicio_nombre","servicio_descripcion",
-                  "precio", "icono", "fecha_baja",
-                  "is_active", "created_at", "updated_at", "created_by", "updated_by"]
+        fields = [
+            "id", "plan", "plan_nombre",
+            "servicio", "servicio_nombre", "servicio_icono",
+            "icono", "precio", "is_active",
+            "created_at", "updated_at", "created_by", "updated_by"
+        ]
         read_only_fields = ("created_at", "updated_at", "created_by", "updated_by")
-
-    def validate(self, attrs):
-        plan = attrs.get("plan") or getattr(self.instance, "plan", None)
-        servicio = attrs.get("servicio") or getattr(self.instance, "servicio", None)
-        if plan and servicio and plan.empresa_id != servicio.empresa_id:
-            raise serializers.ValidationError("El servicio y el plan deben pertenecer a la misma empresa.")
-        return attrs
 
 
 class PlanBeneficioSerializer(serializers.ModelSerializer):

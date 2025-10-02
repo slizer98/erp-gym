@@ -141,42 +141,70 @@ class PlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
 
         return Response(PlanRevisionSerializer(rev).data, status=201)
 
-class PrecioPlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
+class PrecioPlanViewSet(viewsets.ModelViewSet):
+    """
+    /api/v1/planes/precios/
+    - Scoping por empresa a través de plan__empresa_id (usando X-Empresa-Id).
+    - Filtro por ?plan=ID, tipo, esquema, etc.
+    """
+    permission_classes = [IsAuthenticatedInCompany]
+    serializer_class = PrecioPlanSerializer
     queryset = (PrecioPlan.objects
                 .select_related("plan", "plan__empresa", "usuario")
-                .all().order_by("-id"))
-    serializer_class = PrecioPlanSerializer
-    permission_classes = [IsAuthenticatedInCompany]
-    # El mixin filtrará por empresa a través de plan.empresa.
-    # Como el modelo no tiene campo 'empresa' directo, el mixin por defecto no vería el FK.
-    # Opción rápida: sobrescribe get_queryset:
+                .all())
+
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    # OJO: 'empresa' NO es campo directo en PrecioPlan → se filtra con plan__empresa en get_queryset
+    filterset_fields = ["plan", "tipo", "esquema", "numero_visitas", "is_active"]
+    ordering_fields = ["id", "precio", "created_at", "updated_at"]
+    ordering = ["id"]
+
     def get_queryset(self):
         qs = super().get_queryset()
-        empresas_usuario = self.request.user.asignaciones_empresa.values_list("empresa_id", flat=True)
-        return qs.filter(plan__empresa_id__in=empresas_usuario)
+        # scope por empresa desde cabecera (tu patrón actual)
+        emp_id = self.request.headers.get("X-Empresa-Id")
+        if emp_id:
+            qs = qs.filter(plan__empresa_id=emp_id)
+
+        # respeta parámetro ?plan=ID
+        plan_id = self.request.query_params.get("plan")
+        if plan_id:
+            qs = qs.filter(plan_id=plan_id)
+        return qs
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user, updated_by=self.request.user)
-        
-    def perform_create(self, serializer):
+        plan = serializer.validated_data.get("plan")
+        emp_id = self.request.headers.get("X-Empresa-Id")
+
+        # seguridad: el plan debe pertenecer a la empresa del request
+        if emp_id and plan and str(plan.empresa_id) != str(emp_id):
+            raise ValidationError("El plan no pertenece a tu empresa.")
+
         obj = serializer.save(
-            usuario=self.request.user,            
+            usuario=self.request.user,
             created_by=self.request.user,
-            updated_by=self.request.user
+            updated_by=self.request.user,
         )
-        if obj.plan.altas.exists():
-            _publish_after_commit(obj.plan)
+
+        # Si ya tiene altas, dispara publicación si usas ese flujo
+        if hasattr(plan, "altas") and plan.altas.exists():
+            # _publish_after_commit(plan)
+            pass
 
     def perform_update(self, serializer):
         obj = serializer.save(updated_by=self.request.user)
-        if obj.plan.altas.exists():
-            _publish_after_commit(obj.plan)
+        plan = obj.plan
+        if hasattr(plan, "altas") and plan.altas.exists():
+            # _publish_after_commit(plan)
+            pass
 
     def perform_destroy(self, instance):
         plan = instance.plan
         super().perform_destroy(instance)
-        if plan.altas.exists():
-            _publish_after_commit(plan)
+        if hasattr(plan, "altas") and plan.altas.exists():
+            # _publish_after_commit(plan)
+            pass
+
 
 
 class RestriccionPlanViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSet):
@@ -302,14 +330,80 @@ class BeneficioViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
             serializer.validated_data.pop("empresa", None)
         super().perform_update(serializer)
 # Relaciones con Plan (scoped via plan.empresa)
-class PlanServicioViewSet(BaseAuthViewSet):
+class PlanServicioViewSet(viewsets.ModelViewSet):
+    """
+    /api/v1/planes/servicios/
+    Lista/crea relaciones Servicio <-> Plan.
+    - LIST exige ?plan=ID y sólo devuelve servicios de ese plan.
+    - CREATE/PATCH/PUT validan que plan y servicio pertenezcan a la empresa del request.
+    """
     permission_classes = [IsAuthenticatedInCompany]
-    queryset = PlanServicio.objects.select_related("plan", "plan__empresa", "servicio").all().order_by("id")
     serializer_class = PlanServicioSerializer
+    queryset = (PlanServicio.objects
+                .select_related("plan", "plan__empresa", "servicio")
+                .all())
+
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    # Nota: aunque agregamos filterset_fields, LIST no devolverá nada si no pasas ?plan
+    filterset_fields = ["plan", "servicio", "is_active"]
+    ordering_fields = ["id", "created_at", "updated_at"]
+    ordering = ["id"]
+
+    # === Forzamos que LIST siempre sea por plan ===
+    def list(self, request, *args, **kwargs):
+        plan_id = request.query_params.get("plan")
+        if not plan_id:
+            # evita que accidentalmente devuelvas todo
+            return Response(
+                {"detail": "Debes enviar ?plan=ID para listar servicios del plan."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().list(request, *args, **kwargs)
+
     def get_queryset(self):
         qs = super().get_queryset()
         emp_id = self.request.headers.get("X-Empresa-Id")
-        return qs.filter(plan__empresa_id=emp_id) if emp_id else qs
+
+        # scope empresa del plan
+        if emp_id:
+            qs = qs.filter(plan__empresa_id=emp_id)
+
+        # scope por plan (si viene lo aplicamos aquí también)
+        plan_id = self.request.query_params.get("plan")
+        if plan_id:
+            qs = qs.filter(plan_id=plan_id)
+
+        return qs
+
+    def perform_create(self, serializer):
+        emp_id = self.request.headers.get("X-Empresa-Id")
+        plan = serializer.validated_data.get("plan")
+        servicio = serializer.validated_data.get("servicio")
+
+        if not plan:
+            raise ValidationError({"plan": "Es obligatorio."})
+        if not servicio:
+            raise ValidationError({"servicio": "Es obligatorio."})
+
+        if emp_id and str(plan.empresa_id) != str(emp_id):
+            raise ValidationError("El plan no pertenece a tu empresa.")
+        if plan.empresa_id != servicio.empresa_id:
+            raise ValidationError("El servicio y el plan deben pertenecer a la misma empresa.")
+
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+    def perform_update(self, serializer):
+        # Mismas validaciones en update
+        emp_id = self.request.headers.get("X-Empresa-Id")
+        plan = serializer.validated_data.get("plan") or getattr(self.get_object(), "plan", None)
+        servicio = serializer.validated_data.get("servicio") or getattr(self.get_object(), "servicio", None)
+
+        if emp_id and plan and str(plan.empresa_id) != str(emp_id):
+            raise ValidationError("El plan no pertenece a tu empresa.")
+        if plan and servicio and plan.empresa_id != servicio.empresa_id:
+            raise ValidationError("El servicio y el plan deben pertenecer a la misma empresa.")
+
+        serializer.save(updated_by=self.request.user)
 
 class PlanBeneficioViewSet(BaseAuthViewSet):
     permission_classes = [IsAuthenticatedInCompany]
