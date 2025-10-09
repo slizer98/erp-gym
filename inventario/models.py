@@ -49,6 +49,8 @@ class Producto(TimeStampedModel):
     descripcion = models.TextField(blank=True, default='')
     codigo_barras = models.CharField(max_length=64, blank=True, default='')
     precio = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    aplicar_iva = models.BooleanField("Aplicar IVA (16%)", default=True)
+    aplicar_ieps = models.BooleanField("Aplicar IEPS (8%)", default=False)
     iva_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
     class Meta:

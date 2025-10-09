@@ -1,21 +1,259 @@
 from rest_framework import viewsets, permissions
+from rest_framework.decorators import action
+from django.utils.timezone import now
+from django.db.models import Q
+from rest_framework.response import Response
 from .models import Cliente, DatoContacto, DatosFiscales, Convenio, Caracteristica, DatoAdicional, ClienteSucursal
+from planes.models import AltaPlan
 from .serializers import ClienteSerializer,     DatoContactoSerializer, DatosFiscalesSerializer, ConvenioSerializer, CaracteristicaSerializer, DatoAdicionalSerializer, ClienteSucursalSerializer
 from core.mixins import CompanyScopedQuerysetMixin, ReceptionBranchScopedByClienteMixin
 from core.permissions import IsAuthenticatedInCompany
 from django.core.exceptions import ValidationError
+from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.pagination import PageNumberPagination
+
+
+class SmallResultsSetPagination(PageNumberPagination):
+    page_size = 10                       # default
+    page_size_query_param = 'page_size'  # <-- permite ?page_size=10 desde tu front
+    max_page_size = 50
+
+# class ClienteViewSet(ReceptionBranchScopedByClienteMixin, viewsets.ModelViewSet):
+#     queryset = Cliente.objects.select_related("usuario").all().order_by("id")
+#     serializer_class = ClienteSerializer
+#     permission_classes = [permissions.IsAuthenticated]
+
+#     # 🔎 habilita búsqueda y orden
+#     filter_backends = [SearchFilter, OrderingFilter]
+#     search_fields = ["nombre", "apellidos", "email"]  # añade más si quieres
+#     ordering_fields = ["id", "nombre", "apellidos", "created_at"]
+#     ordering = ["-id"]
+#     pagination_class = SmallResultsSetPagination
+    
+#     def perform_create(self, serializer):
+#         serializer.save(created_by=self.request.user, updated_by=self.request.user)
+
+#     def perform_update(self, serializer):
+#         serializer.save(updated_by=self.request.user)
+      
+#     @action(detail=True, methods=["get"])
+#     def resumen(self, request, pk=None):
+#         c = self.get_object()
+
+#         # ---- Contacto: convierte (tipo, valor) -> dict { email, celular, telefono }
+#         contacto = {}
+#         if DatoContacto is not None:
+#             # Tomamos el último por tipo (email/celular/telefono)
+#             def ultimo_val(tipo):
+#                 row = (DatoContacto.objects
+#                        .filter(cliente=c, tipo__iexact=tipo)
+#                        .order_by("-id").values("valor").first())
+#                 return (row or {}).get("valor")
+#             contacto = {
+#                 "email":    ultimo_val("email")    or (getattr(c, "email", None) or ""),
+#                 "celular":  ultimo_val("celular")  or "",
+#                 "telefono": ultimo_val("telefono") or "",
+#             }
+#         else:
+#             contacto = {
+#                 "email":    getattr(c, "email", None) or "",
+#                 "celular":  getattr(c, "celular", "") or "",
+#                 "telefono": getattr(c, "telefono", "") or "",
+#             }
+
+#         # ---- Datos fiscales (si existen)
+#         fiscal = {}
+#         if DatosFiscales is not None:
+#             row = (DatosFiscales.objects
+#                    .filter(cliente=c).order_by("-id")
+#                    .values("rfc", "razon_social").first()) or {}
+#             fiscal = {
+#                 "rfc": row.get("rfc") or "",
+#                 "razon_social": row.get("razon_social") or "",
+#             }
+
+#         # ---- Última asignación de sucursal (si existe)
+#         sucursal_nombre = None
+#         if ClienteSucursal is not None:
+#             cs = (ClienteSucursal.objects
+#                   .filter(cliente=c).select_related("sucursal")
+#                   .order_by("-id").first())
+#             if cs and cs.sucursal:
+#                 sucursal_nombre = cs.sucursal.nombre
+
+#         # ---- Plan actual (si manejas Altas de plan)
+#         plan_actual = None
+#         plan_estado = None
+#         proximo_cobro = None
+#         ultimo_pago = None  # si luego tienes modelo de pagos, aquí lo rellenas
+
+#         if AltaPlan is not None:
+#             # “Vigente” simple: último registro por fecha_alta; puedes afinar con vencimiento >= hoy
+#             alta = (AltaPlan.objects
+#                     .select_related("plan")
+#                     .filter(cliente=c)
+#                     .order_by("-fecha_alta", "-id")
+#                     .first())
+#             if alta:
+#                 plan_actual = getattr(getattr(alta, "plan", None), "nombre", None)
+#                 # estado: activo si no hay vencimiento o si hoy <= vencimiento
+#                 fv = getattr(alta, "fecha_vencimiento", None)
+#                 if fv:
+#                     plan_estado = "activo" if now().date() <= fv else "vencido"
+#                 else:
+#                     plan_estado = "activo"
+#                 # si manejas fecha_limite_pago, úsala como “próximo cobro”
+#                 proximo_cobro = getattr(alta, "fecha_limite_pago", None)
+
+#         data = {
+#             "id": c.id,
+#             "nombre": getattr(c, "nombre", "") or "",
+#             "apellidos": getattr(c, "apellidos", "") or "",
+#             "email": getattr(c, "email", None),
+#             "created": getattr(c, "created_at", None),
+#             "estado": getattr(c, "estado", None),  # o is_active si usas booleano
+#             "is_active": bool(getattr(c, "is_active", True)),
+#             "sucursal_nombre": sucursal_nombre,
+
+#             "contacto": contacto,
+#             "fiscal": fiscal,
+
+#             # Ficha extra (para el card lateral)
+#             "inscripcion": getattr(c, "fecha_alta", None) or getattr(c, "created_at", None),
+#             "proximo_cobro": proximo_cobro,
+#             "ultimo_pago": ultimo_pago,
+
+#             # Plan actual/estado para pintar “Activo – <Plan>” en la columna
+#             "plan_actual": plan_actual,     # ej. "Plan Premium"
+#             "plan_estado": plan_estado,     # "activo" | "vencido" | None
+#         }
+#         return Response(data)
 
 class ClienteViewSet(ReceptionBranchScopedByClienteMixin, viewsets.ModelViewSet):
-    queryset = Cliente.objects.select_related("usuario").all().order_by("id")
+    queryset = (
+        Cliente.objects
+        .select_related("usuario")
+        .all()
+        .order_by("-id")
+    )
     serializer_class = ClienteSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
+    # 🔎 Búsqueda/orden (útiles si en algún punto los usas desde el front, pero sin paginar)
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ["nombre", "apellidos", "email"]  # añade campos si hace falta
+    ordering_fields = ["id", "nombre", "apellidos", "created_at"]
+    ordering = ["-id"]
+
+    # 🟥 Desactivar paginación SOLO en esta vista (aunque haya paginación global en settings)
+    pagination_class = None
+
+    # ⚠️ Forzamos el list a NO usar paginación:
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())  # respeta search/order si los mandas
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)  # ← arreglo plano con TODOS los clientes
+
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user, updated_by=self.request.user)
 
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
 
+    @action(detail=True, methods=["get"])
+    def resumen(self, request, pk=None):
+        c = self.get_object()
+
+        # ---- Contacto: convierte (tipo, valor) -> dict { email, celular, telefono }
+        contacto = {}
+        if DatoContacto is not None:
+            def ultimo_val(tipo):
+                row = (
+                    DatoContacto.objects
+                    .filter(cliente=c, tipo__iexact=tipo)
+                    .order_by("-id").values("valor").first()
+                )
+                return (row or {}).get("valor")
+            contacto = {
+                "email":    ultimo_val("email")    or (getattr(c, "email", None) or ""),
+                "celular":  ultimo_val("celular")  or "",
+                "telefono": ultimo_val("telefono") or "",
+            }
+        else:
+            contacto = {
+                "email":    getattr(c, "email", None) or "",
+                "celular":  getattr(c, "celular", "") or "",
+                "telefono": getattr(c, "telefono", "") or "",
+            }
+
+        # ---- Datos fiscales (si existen)
+        fiscal = {}
+        if DatosFiscales is not None:
+            row = (
+                DatosFiscales.objects
+                .filter(cliente=c).order_by("-id")
+                .values("rfc", "razon_social").first()
+            ) or {}
+            fiscal = {
+                "rfc": row.get("rfc") or "",
+                "razon_social": row.get("razon_social") or "",
+            }
+
+        # ---- Última asignación de sucursal (si existe)
+        sucursal_nombre = None
+        if ClienteSucursal is not None:
+            cs = (
+                ClienteSucursal.objects
+                .filter(cliente=c).select_related("sucursal")
+                .order_by("-id").first()
+            )
+            if cs and cs.sucursal:
+                sucursal_nombre = cs.sucursal.nombre
+
+        # ---- Plan actual (si manejas Altas de plan)
+        plan_actual = None
+        plan_estado = None
+        proximo_cobro = None
+        ultimo_pago = None  # si luego tienes modelo de pagos, aquí lo rellenas
+
+        if AltaPlan is not None:
+            alta = (
+                AltaPlan.objects
+                .select_related("plan")
+                .filter(cliente=c)
+                .order_by("-fecha_alta", "-id")
+                .first()
+            )
+            if alta:
+                plan_actual = getattr(getattr(alta, "plan", None), "nombre", None)
+                fv = getattr(alta, "fecha_vencimiento", None)
+                if fv:
+                    plan_estado = "activo" if now().date() <= fv else "vencido"
+                else:
+                    plan_estado = "activo"
+                proximo_cobro = getattr(alta, "fecha_limite_pago", None)
+
+        data = {
+            "id": c.id,
+            "nombre": getattr(c, "nombre", "") or "",
+            "apellidos": getattr(c, "apellidos", "") or "",
+            "email": getattr(c, "email", None),
+            "created": getattr(c, "created_at", None),
+            "estado": getattr(c, "estado", None),
+            "is_active": bool(getattr(c, "is_active", True)),
+            "sucursal_nombre": sucursal_nombre,
+
+            "contacto": contacto,
+            "fiscal": fiscal,
+
+            "inscripcion": getattr(c, "fecha_alta", None) or getattr(c, "created_at", None),
+            "proximo_cobro": proximo_cobro,
+            "ultimo_pago": ultimo_pago,
+
+            "plan_actual": plan_actual,   # ej. "Plan Premium"
+            "plan_estado": plan_estado,   # "activo" | "vencido" | None
+        }
+        return Response(data)
 
 class BaseAuthViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
