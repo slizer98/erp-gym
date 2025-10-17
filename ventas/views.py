@@ -1,5 +1,5 @@
 from decimal import Decimal
-from rest_framework import viewsets, permissions, decorators, response, status
+from rest_framework import viewsets, permissions, decorators, response, status,  filters as drf_filters
 from core.permissions import IsAuthenticatedInCompany
 from rest_framework import viewsets, filters, permissions
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, DateTimeFromToRangeFilter, NumberFilter
@@ -9,9 +9,10 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Sum, Case, When, IntegerField, F
-from .models import CodigoDescuento, Venta, DetalleVenta
+from .models import CodigoDescuento, Venta, DetalleVenta,MetodoPago
 from inventario.models import MovimientoProducto, Producto, Almacen
 from .serializers import CodigoDescuentoSerializer, VentaSerializer, DetalleVentaSerializer
+from .filters import VentaFilter
 
 class BaseAuthViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
@@ -108,65 +109,62 @@ class CodigoDescuentoViewSet(viewsets.ModelViewSet):
         return response.Response({"ok": True, "restantes": cd.restantes}, status=200)
 
 
-class VentaFilter(FilterSet):
-    fecha = DateTimeFromToRangeFilter()
-    empresa = NumberFilter(field_name="empresa_id")
-    cliente = NumberFilter(field_name="cliente_id")
-    class Meta:
-        model = Venta
-        fields = ["empresa", "cliente", "fecha", "metodo_pago"]
+
 
 class VentaViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
     permission_classes = [IsAuthenticatedInCompany]
-    queryset = (Venta.objects
-                .select_related("empresa", "cliente")
-                .prefetch_related("detalles")
-                .all())
-    serializer_class = VentaSerializer
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_class = VentaFilter
-    ordering_fields = ["id", "fecha", "importe"]
-    ordering = ["-fecha"]
+    queryset = (
+        Venta.objects
+        .select_related("empresa", "cliente", "sucursal", "usuario")
+        .prefetch_related("detalles", "pagos")
+        .annotate(total_pagado=Sum("pagos__importe"))
+        .all()
+    )
+    serializer_class  = VentaSerializer
+    filter_backends   = [DjangoFilterBackend, drf_filters.OrderingFilter]
+    filterset_class   = VentaFilter
+    ordering_fields   = ["id", "fecha", "importe", "total"]
+    ordering          = ["-fecha"]
+
     @decorators.action(detail=False, methods=["post"], url_path="pos-checkout")
     def pos_checkout(self, request):
         """
-        Cierra una venta en UNA transacción:
-        - Crea Venta y Detalles
-        - Genera movimientos de inventario (SALIDA)
-        - Aplica y canjea código de descuento (opcional)
-
-        Payload esperado (ejemplo):
+        Cierra una venta con múltiples pagos.
+        Payload:
         {
           "empresa": 1,
-          "cliente": 123,                 # id de usuario/cliente
-          "metodo_pago": "efectivo",      # efectivo/tarjeta/transferencia/mixto
-          "almacen": 5,                   # almacén desde donde salen productos
-          "codigo_descuento": "ABC10",    # opcional
+          "cliente": 123,
+          "almacen": 5,                # opcional si hay productos
+          "codigo_descuento": "ABC10", # opcional
           "items": [
             {"producto": 10, "plan": null, "cantidad": 2, "precio_unit": "199.00"},
             {"producto": null, "plan": 3,  "cantidad": 1, "precio_unit": "499.00"}
           ],
-          "fecha": null                    # opcional (server now)
+          "pagos": [
+            {"forma_pago": "efectivo", "importe": "300.00"},
+            {"forma_pago": "tarjeta",  "importe": "597.00"}
+          ],
+          "fecha": null
         }
         """
-        data = request.data
-        empresa_id = data.get("empresa")
-        cliente_id = data.get("cliente")
-        metodo_pago = data.get("metodo_pago")
-        almacen_id = data.get("almacen")
-        codigo_str = (data.get("codigo_descuento") or "").strip().upper()
-        items = data.get("items") or []
-        fecha = data.get("fecha")
+        data        = request.data
+        empresa_id  = data.get("empresa")
+        cliente_id  = data.get("cliente")
+        almacen_id  = data.get("almacen")
+        codigo_str  = (data.get("codigo_descuento") or "").strip().upper()
+        items       = data.get("items") or []
+        pagos_in    = data.get("pagos") or []
+        fecha       = data.get("fecha") or timezone.now()
 
-        if not empresa_id or not cliente_id or not metodo_pago or not items:
-            return response.Response({"detail": "Faltan campos obligatorios (empresa, cliente, metodo_pago, items)."}, status=400)
+        if not empresa_id or not cliente_id or not items:
+            return response.Response({"detail": "Faltan campos obligatorios (empresa, cliente, items)."}, status=400)
 
         try:
             almacen = Almacen.objects.get(pk=almacen_id, empresa_id=empresa_id) if almacen_id else None
         except Almacen.DoesNotExist:
             return response.Response({"detail": "Almacén inválido."}, status=400)
 
-        # Totales
+        # Calcular subtotal
         subtotal = Decimal("0.00")
         for it in items:
             try:
@@ -176,15 +174,19 @@ class VentaViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
                 return response.Response({"detail": "cantidad/precio_unit inválidos."}, status=400)
             if qty <= 0 or pu < 0:
                 return response.Response({"detail": "Cantidad o precio inválidos."}, status=400)
-            subtotal += pu * qty
+            subtotal += (pu * qty)
 
+        # Descuento
         descuento_aplicado = Decimal("0.00")
         cd = None
         if codigo_str:
             try:
-                cd = CodigoDescuento.objects.select_for_update().get(empresa_id=empresa_id, codigo=codigo_str, is_active=True)
+                cd = CodigoDescuento.objects.select_for_update().get(
+                    empresa_id=empresa_id, codigo=codigo_str, is_active=True
+                )
             except CodigoDescuento.DoesNotExist:
                 return response.Response({"detail": "Código de descuento inválido."}, status=400)
+
             if cd.restantes <= 0:
                 return response.Response({"detail": "El código no tiene usos disponibles."}, status=400)
 
@@ -196,57 +198,75 @@ class VentaViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
             if descuento_aplicado > subtotal:
                 descuento_aplicado = subtotal
 
-        total = (subtotal - descuento_aplicado).quantize(Decimal('0.01'))
+        total = (subtotal - descuento_aplicado).quantize(Decimal("0.01"))
         if total < 0:
             total = Decimal("0.00")
 
-        now = timezone.now()
-        fecha = fecha or now
+        # Validar pagos (si llegan)
+        total_pagos = Decimal("0.00")
+        for p in pagos_in:
+            try:
+                imp = Decimal(str(p.get("importe", "0")))
+                if imp <= 0:
+                    return response.Response({"detail": "Importe de pago debe ser > 0."}, status=400)
+                total_pagos += imp
+            except Exception:
+                return response.Response({"detail": "Importe de pago inválido."}, status=400)
 
-        # Validación de stock y creación atómica
-        with transaction.atomic():
-            # Validar stock de productos y preparar líneas
-            for it in items:
-                prod_id = it.get("producto")
-                qty = int(it.get("cantidad", 0))
-                if prod_id and almacen:
-                    # stock = entradas - salidas + ajustes
-                    stock = MovimientoProducto.objects.filter(
-                        empresa_id=empresa_id,
-                        producto_id=prod_id,
-                        almacen_id=almacen.id,
-                    ).aggregate(
-                        s=Sum(
-                            Case(
-                                When(tipo_movimiento=MovimientoProducto.TipoMovimiento.ENTRADA, then='cantidad'),
-                                When(tipo_movimiento=MovimientoProducto.TipoMovimiento.SALIDA,  then=-1*F('cantidad')),
-                                When(tipo_movimiento=MovimientoProducto.TipoMovimiento.AJUSTE,  then='cantidad'),
-                                default=0,
-                                output_field=IntegerField(),
-                            )
+        # (Opcional) exigir que los pagos cubran el total:
+        if pagos_in and total_pagos != total:
+            return response.Response(
+                {"detail": f"La suma de pagos ({total_pagos}) debe ser igual al total ({total})."},
+                status=400
+            )
+
+        # Validación de stock
+        for it in items:
+            prod_id = it.get("producto")
+            qty     = int(it.get("cantidad", 0))
+            if prod_id and almacen:
+                stock = MovimientoProducto.objects.filter(
+                    empresa_id=empresa_id,
+                    producto_id=prod_id,
+                    almacen_id=almacen.id,
+                ).aggregate(
+                    s=Sum(
+                        Case(
+                            When(tipo_movimiento=MovimientoProducto.TipoMovimiento.ENTRADA, then='cantidad'),
+                            When(tipo_movimiento=MovimientoProducto.TipoMovimiento.SALIDA,  then=-1*F('cantidad')),
+                            When(tipo_movimiento=MovimientoProducto.TipoMovimiento.AJUSTE,  then='cantidad'),
+                            default=0,
+                            output_field=IntegerField(),
                         )
-                    )["s"] or 0
-                    if stock < qty:
-                        return response.Response({"detail": f"Stock insuficiente para producto {prod_id} en almacén {almacen.id}. Disponible: {stock}, requerido: {qty}"}, status=400)
+                    )
+                )["s"] or 0
+                if stock < qty:
+                    return response.Response(
+                        {"detail": f"Stock insuficiente para producto {prod_id}. Disponible: {stock}, requerido: {qty}"},
+                        status=400
+                    )
 
-            # Crear venta
+        with transaction.atomic():
+            # Crear Venta
             venta = Venta.objects.create(
                 empresa_id=empresa_id,
                 cliente_id=cliente_id,
                 fecha=fecha,
-                importe=total,
-                metodo_pago=metodo_pago,
+                importe=total,           # puedes igualarlo a total o dejarlo como concepto legacy
+                subtotal=subtotal,
+                descuento_monto=descuento_aplicado,
+                total=total,
                 created_by=request.user,
                 updated_by=request.user,
             )
 
-            # Crear detalles y movimientos
+            # Crear detalles + movimientos
             detalles_out = []
             for it in items:
                 prod_id = it.get("producto")
                 plan_id = it.get("plan")
-                qty = int(it.get("cantidad", 0))
-                pu  = Decimal(str(it.get("precio_unit", "0")))
+                qty     = int(it.get("cantidad", 0))
+                pu      = Decimal(str(it.get("precio_unit", "0")))
                 det = DetalleVenta.objects.create(
                     venta=venta,
                     producto_id=prod_id or None,
@@ -258,7 +278,6 @@ class VentaViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
                 )
                 detalles_out.append(det.id)
 
-                # Movimiento de inventario (solo productos)
                 if prod_id and almacen:
                     MovimientoProducto.objects.create(
                         empresa_id=empresa_id,
@@ -271,33 +290,55 @@ class VentaViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
                         updated_by=request.user,
                     )
 
-            # Canjear descuento (si procede)
+            # Crear pagos
+            pagos_out = []
+            for p in pagos_in:
+                mp = MetodoPago.objects.create(
+                    venta=venta,
+                    forma_pago=(p.get("forma_pago") or "").strip().lower(),
+                    importe=Decimal(str(p.get("importe"))),
+                    created_by=request.user,
+                    updated_by=request.user,
+                )
+                pagos_out.append(mp.id)
+
+            # Canjear descuento
             if cd:
-                cd.restantes = cd.restantes - 1
+                cd.restantes  = cd.restantes - 1
                 cd.updated_by = request.user
                 cd.save(update_fields=["restantes", "updated_by", "updated_at"])
 
         return response.Response({
             "ok": True,
             "venta_id": venta.id,
-            "importe": str(venta.importe),
             "detalles": detalles_out,
-            "subtotal": str(subtotal.quantize(Decimal('0.01'))),
-            "descuento": str(descuento_aplicado.quantize(Decimal('0.01'))),
+            "pagos": pagos_out,
+            "subtotal": str(subtotal),
+            "descuento": str(descuento_aplicado),
             "total": str(total),
         }, status=status.HTTP_201_CREATED)
 
 class DetalleVentaViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
-    """
-    Nota: si tu CompanyScopedQuerysetMixin filtra por request.company,
-    asegúrate que Venta->empresa esté alineado.
-    """
     permission_classes = [IsAuthenticatedInCompany]
-    queryset = (DetalleVenta.objects
-                .select_related("venta", "plan", "producto", "codigo_descuento")
-                .all())
-    serializer_class = DetalleVentaSerializer
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ["venta", "producto", "plan", "codigo_descuento"]
-    ordering_fields = ["id", "importe", "cantidad"]
-    ordering = ["-id"]
+    queryset = (
+        DetalleVenta.objects
+        .select_related("venta", "plan", "producto", "codigo_descuento")
+        .all()
+    )
+    serializer_class  = DetalleVentaSerializer
+    filter_backends   = [DjangoFilterBackend, drf_filters.OrderingFilter]
+    filterset_fields  = ["venta", "producto", "plan", "codigo_descuento"]
+    ordering_fields   = ["id", "importe", "cantidad"]
+    ordering          = ["-id"]
+
+# class MetodoPagoViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
+#     """
+#     CRUD de pagos por venta. Útil para reportes o ajustes.
+#     """
+#     permission_classes = [IsAuthenticatedInCompany]
+#     queryset = MetodoPago.objects.select_related("venta").all()
+#     serializer_class = MetodoPagoSerializer
+#     filter_backends  = [DjangoFilterBackend, drf_filters.OrderingFilter]
+#     filterset_fields = ["venta", "forma_pago"]
+#     ordering_fields  = ["id", "importe"]
+#     ordering         = ["-id"]

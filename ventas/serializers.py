@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from .models import CodigoDescuento, Venta, DetalleVenta
-
+from .models import CodigoDescuento, Venta, DetalleVenta, MetodoPago
+from django.db.models import Sum
 
 class CodigoDescuentoSerializer(serializers.ModelSerializer):
     empresa_nombre = serializers.CharField(source="empresa.nombre", read_only=True)
@@ -41,10 +41,17 @@ class CodigoDescuentoSerializer(serializers.ModelSerializer):
         return attrs
 
 
+
+class MetodoPagoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model  = MetodoPago
+        fields = ("id", "venta", "forma_pago", "importe", "created_at", "updated_at")
+        read_only_fields = ("created_at","updated_at")
+
 class DetalleVentaSerializer(serializers.ModelSerializer):
-    plan_nombre = serializers.CharField(source="plan.nombre", read_only=True)
+    plan_nombre     = serializers.CharField(source="plan.nombre", read_only=True)
     producto_nombre = serializers.CharField(source="producto.nombre", read_only=True)
-    codigo = serializers.CharField(source="codigo_descuento.codigo", read_only=True)
+    codigo          = serializers.CharField(source="codigo_descuento.codigo", read_only=True)
 
     class Meta:
         model = DetalleVenta
@@ -52,14 +59,16 @@ class DetalleVentaSerializer(serializers.ModelSerializer):
         read_only_fields = ("created_at","updated_at","created_by","updated_by","is_active")
 
     def validate(self, data):
-        # Debe tener plan o producto (al menos uno)
         if not data.get("plan") and not data.get("producto"):
             raise serializers.ValidationError("Debes indicar un plan o un producto.")
         return data
 
 class VentaSerializer(serializers.ModelSerializer):
-    detalles = DetalleVentaSerializer(many=True, read_only=True)
+    detalles      = DetalleVentaSerializer(many=True, read_only=True)
+    pagos         = MetodoPagoSerializer(many=True, read_only=True)
     cliente_nombre = serializers.SerializerMethodField()
+    total_pagado   = serializers.SerializerMethodField()
+    saldo          = serializers.SerializerMethodField()
 
     class Meta:
         model = Venta
@@ -67,5 +76,20 @@ class VentaSerializer(serializers.ModelSerializer):
         read_only_fields = ("created_at","updated_at","created_by","updated_by","is_active")
 
     def get_cliente_nombre(self, obj):
-        # ajusta si tu user tiene otros campos
-        return getattr(obj.cliente, "get_full_name", lambda: str(obj.cliente))()
+        return getattr(obj.cliente, "nombre_completo", None) or str(obj.cliente)
+
+    def get_total_pagado(self, obj):
+        # si el queryset viene anotado, úsalo; si no, calcula rápido
+        val = getattr(obj, "total_pagado", None)
+        if val is not None:
+            return str(val)
+        return str(obj.pagos.aggregate(s=Sum("importe"))["s"] or 0)
+
+    def get_saldo(self, obj):
+        try:
+            pagado = getattr(obj, "total_pagado", None)
+            if pagado is None:
+                pagado = obj.pagos.aggregate(s=Sum("importe"))["s"] or 0
+            return str((obj.total or 0) - pagado)
+        except Exception:
+            return None

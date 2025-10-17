@@ -52,6 +52,7 @@ class Producto(TimeStampedModel):
     aplicar_iva = models.BooleanField("Aplicar IVA (16%)", default=True)
     aplicar_ieps = models.BooleanField("Aplicar IEPS (8%)", default=False)
     iva_porcentaje = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    afectastock  = models.BooleanField("Afecta el stock", default=False)
 
     class Meta:
         unique_together = (('empresa', 'nombre'),)
