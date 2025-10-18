@@ -164,7 +164,7 @@ class ClienteViewSet(ReceptionBranchScopedByClienteMixin, viewsets.ModelViewSet)
     def resumen(self, request, pk=None):
         c = self.get_object()
 
-        # ---- Contacto: convierte (tipo, valor) -> dict { email, celular, telefono }
+        # ---- Contacto
         contacto = {}
         if DatoContacto is not None:
             def ultimo_val(tipo):
@@ -186,7 +186,7 @@ class ClienteViewSet(ReceptionBranchScopedByClienteMixin, viewsets.ModelViewSet)
                 "telefono": getattr(c, "telefono", "") or "",
             }
 
-        # ---- Datos fiscales (si existen)
+        # ---- Datos fiscales
         fiscal = {}
         if DatosFiscales is not None:
             row = (
@@ -199,7 +199,7 @@ class ClienteViewSet(ReceptionBranchScopedByClienteMixin, viewsets.ModelViewSet)
                 "razon_social": row.get("razon_social") or "",
             }
 
-        # ---- Última asignación de sucursal (si existe)
+        # ---- Última sucursal
         sucursal_nombre = None
         if ClienteSucursal is not None:
             cs = (
@@ -210,48 +210,77 @@ class ClienteViewSet(ReceptionBranchScopedByClienteMixin, viewsets.ModelViewSet)
             if cs and cs.sucursal:
                 sucursal_nombre = cs.sucursal.nombre
 
-        # ---- Plan actual (si manejas Altas de plan)
+        # ---- Plan / AltaPlan
         plan_actual = None
         plan_estado = None
         proximo_cobro = None
-        ultimo_pago = None  # si luego tienes modelo de pagos, aquí lo rellenas
+        ultimo_pago = None   # reservar para cuando tengas pagos
+        fecha_alta = getattr(c, "created_at", None)
+        fecha_limite = None
+        costo_inscripcion = None
+        plan_id = None
+
+        plan_fecha_limite = None  # posible respaldo desde Plan
 
         if AltaPlan is not None:
             alta = (
                 AltaPlan.objects
                 .select_related("plan")
-                .filter(cliente=c)
+                .filter(cliente=c)               # si quieres, añade .filter(empresa=request.headers.get("X-Empresa-Id"))
                 .order_by("-fecha_alta", "-id")
                 .first()
             )
             if alta:
-                plan_actual = getattr(getattr(alta, "plan", None), "nombre", None)
+                plan = getattr(alta, "plan", None)
+                plan_id = getattr(plan, "id", None)
+                plan_actual = getattr(plan, "nombre", None)
+                costo_inscripcion = getattr(plan, "costo_inscripcion", None)
+                plan_fecha_limite = getattr(plan, "fecha_limite_pago", None)
+
+                # estado por vencimiento
                 fv = getattr(alta, "fecha_vencimiento", None)
                 if fv:
                     plan_estado = "activo" if now().date() <= fv else "vencido"
                 else:
                     plan_estado = "activo"
-                proximo_cobro = getattr(alta, "fecha_limite_pago", None)
+
+                # fechas clave
+                fecha_alta = getattr(alta, "fecha_alta", None) or fecha_alta
+                proximo_cobro = getattr(alta, "fecha_limite_pago", None) or plan_fecha_limite
+                fecha_limite = getattr(alta, "fecha_limite_pago", None) or plan_fecha_limite
+
+        # si no hubo AltaPlan pero sí plan_fecha_limite (poco común), úsalo
+        if not proximo_cobro and plan_fecha_limite:
+            proximo_cobro = plan_fecha_limite
+        if not fecha_limite and plan_fecha_limite:
+            fecha_limite = plan_fecha_limite
 
         data = {
             "id": c.id,
             "nombre": getattr(c, "nombre", "") or "",
             "apellidos": getattr(c, "apellidos", "") or "",
-            "email": getattr(c, "email", None),
+            "email": contacto.get("email") or None,   # el card mostrará sólo si existe
             "created": getattr(c, "created_at", None),
             "estado": getattr(c, "estado", None),
             "is_active": bool(getattr(c, "is_active", True)),
             "sucursal_nombre": sucursal_nombre,
 
             "contacto": contacto,
-            "fiscal": fiscal,
+            "fiscal": { "rfc": fiscal.get("rfc") or "" },  # el card mostrará sólo si existe
 
-            "inscripcion": getattr(c, "fecha_alta", None) or getattr(c, "created_at", None),
+            # Fechas para el card
+            "fecha_alta": fecha_alta,            # costo_inscripcion(fecha de alta) -> FECHA
             "proximo_cobro": proximo_cobro,
-            "ultimo_pago": ultimo_pago,
+            "fecha_limite": fecha_limite,        # adicional a proximo_cobro
 
-            "plan_actual": plan_actual,   # ej. "Plan Premium"
-            "plan_estado": plan_estado,   # "activo" | "vencido" | None
+            # Plan
+            "plan_id": plan_id,
+            "plan_actual": plan_actual,          # texto ("Plan Premium")
+            "plan_estado": plan_estado,          # "activo"/"vencido"/None
+            "costo_inscripcion": costo_inscripcion,  # MXN (Decimal)
+
+            # opcional
+            "ultimo_pago": ultimo_pago,
         }
         return Response(data)
 
