@@ -445,6 +445,19 @@ class AltaPlanViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
     company_fk_name = "empresa"
     queryset = AltaPlan.objects.select_related("empresa", "sucursal", "cliente", "plan").all().order_by("-id")
     serializer_class = AltaPlanSerializer
+    
+    ordering_fields = ("id", "fecha_alta", "fecha_vencimiento", "fecha_limite_pago", "created_at")
+    ordering = ("fecha_limite_pago", "id")
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        after = self.request.query_params.get("fecha_limite_pago_after")
+        before = self.request.query_params.get("fecha_limite_pago_before")
+        if after:
+            qs = qs.filter(fecha_limite_pago__gte=after)
+        if before:
+            qs = qs.filter(fecha_limite_pago__lte=before)
+        return qs
 
 class AccesoViewSet(CompanyScopedQuerysetMixin, BaseAuthViewSet):
     permission_classes = [IsAuthenticatedInCompany]

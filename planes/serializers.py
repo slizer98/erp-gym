@@ -341,7 +341,7 @@ class AltaPlanSerializer(serializers.ModelSerializer):
         fields = ["id", "empresa", "empresa_nombre", "sucursal", "sucursal_nombre",
                   "cliente", "cliente_nombre", "plan", "plan_nombre",
                   "plan_revision", "plan_revision_version",
-                  "fecha_alta", "fecha_vencimiento", "renovacion",
+                  "fecha_alta", "fecha_vencimiento", "fecha_limite_pago", "renovacion",
                   "is_active", "created_at", "updated_at", "created_by", "updated_by"]
         read_only_fields = ("created_at", "updated_at", "created_by", "updated_by")
 
