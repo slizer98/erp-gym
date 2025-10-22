@@ -119,12 +119,22 @@ class ValorConfiguracionViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSe
 
         # Inferencia simple de tipo_dato por nombre
         defaults_map = {
-            "ui.nav":              ("json", "JSON con el menú del sidebar"),
-            "ui.app_name":         ("text", "Nombre visible de la app"),
-            "ui.logo_url":         ("text", "URL del logo"),
-            "ui.primary":          ("text", "Color primario (hex)"),
-            "ui.secondary":        ("text", "Color secundario (hex)"),
-            "ui.dashboard.widgets":("json", "Listado de widgets del dashboard"),
+            "ui.nav":               ("json",  "JSON con el menú del sidebar"),
+            "ui.app_name":          ("text",  "Nombre visible de la app"),
+            "ui.logo_url":          ("text",  "URL del logo"),
+            "ui.primary":           ("text",  "Color primario (hex)"),
+            "ui.secondary":         ("text",  "Color secundario (hex)"),
+            "ui.bgStart":           ("text",  "Gradiente fondo inicio"),
+            "ui.bgEnd":             ("text",  "Gradiente fondo fin"),
+            "ui.topStart":          ("text",  "Topbar gradiente inicio"),
+            "ui.topEnd":            ("text",  "Topbar gradiente fin"),
+            "ui.text":              ("text",  "Color de texto base"),
+            "ui.card.bg":           ("text",  "Color de fondo de cards"),
+            "ui.card.text":         ("text",  "Color de texto en cards"),
+            "ui.dashboard.widgets": ("json",  "Listado de widgets del dashboard"),
+            "ui.bg.mode":   ("text", "Modo de fondo de la app: 'solid' o 'gradient'"),
+            "ui.bgSolid":   ("text", "Color sólido del fondo general (#hex)"),
+            "ui.subtext": ("text", "Color para textos secundarios (p. ej. #64748b o rgba)"),
         }
         tipo, desc = defaults_map.get(nombre, ("text", nombre))
 
@@ -151,13 +161,16 @@ class ValorConfiguracionViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSe
     @transaction.atomic
     def upsert_many(self, request):
         """
-        body: { empresa: ID, pares: [{nombre:'ui.app_name', valor:'X'}, ...] }
+        body: { empresa: ID, items|pares: [{nombre:'ui.app_name', valor:'X'}, ...] }
         """
         empresa_id = request.data.get("empresa")
-        pares = request.data.get("pares", [])
+        pares = request.data.get("items", None)
+        if pares is None:
+            pares = request.data.get("pares", [])
+
         if not empresa_id or not isinstance(pares, list):
-            return response.Response({"detail": "empresa y pares[] requeridos"},
-                                     status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "empresa y items[]/pares[] requeridos"},
+                                    status=status.HTTP_400_BAD_REQUEST)
 
         results = []
         for p in pares:
@@ -165,14 +178,25 @@ class ValorConfiguracionViewSet(CompanyScopedQuerysetMixin, viewsets.ModelViewSe
             valor  = p.get("valor", "")
             if not nombre:
                 continue
-            # mismos defaults del upsert normal
+
+            # defaults de tipo para TODAS las claves UI que usaremos
             defaults_map = {
-                "ui.nav":              ("json", "JSON con el menú del sidebar"),
-                "ui.app_name":         ("text", "Nombre visible de la app"),
-                "ui.logo_url":         ("text", "URL del logo"),
-                "ui.primary":          ("text", "Color primario (hex)"),
-                "ui.secondary":        ("text", "Color secundario (hex)"),
-                "ui.dashboard.widgets":("json", "Listado de widgets del dashboard"),
+                "ui.nav":               ("json",  "JSON con el menú del sidebar"),
+                "ui.app_name":          ("text",  "Nombre visible de la app"),
+                "ui.logo_url":          ("text",  "URL del logo"),
+                "ui.primary":           ("text",  "Color primario (hex)"),
+                "ui.secondary":         ("text",  "Color secundario (hex)"),
+                "ui.bgStart":           ("text",  "Gradiente fondo inicio"),
+                "ui.bgEnd":             ("text",  "Gradiente fondo fin"),
+                "ui.topStart":          ("text",  "Topbar gradiente inicio"),
+                "ui.topEnd":            ("text",  "Topbar gradiente fin"),
+                "ui.text":              ("text",  "Color de texto base"),
+                "ui.card.bg":           ("text",  "Color de fondo de cards"),
+                "ui.card.text":         ("text",  "Color de texto en cards"),
+                "ui.dashboard.widgets": ("json",  "Listado de widgets del dashboard"),
+                "ui.bg.mode":   ("text", "Modo de fondo de la app: 'solid' o 'gradient'"),
+                "ui.bgSolid":   ("text", "Color sólido del fondo general (#hex)"),
+                "ui.subtext": ("text", "Color para textos secundarios (p. ej. #64748b o rgba)"),
             }
             tipo, desc = defaults_map.get(nombre, ("text", nombre))
             cfg, _ = Configuracion.objects.get_or_create(
