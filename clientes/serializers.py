@@ -3,6 +3,11 @@ from .models import Cliente,DatoContacto, DatosFiscales, Convenio,Caracteristica
 
 class ClienteSerializer(serializers.ModelSerializer):
     usuario_nombre = serializers.CharField(source="usuario.get_full_name", read_only=True)
+    
+    avatar = serializers.ImageField(required=False, allow_null=True)
+
+    # URL absoluta para el front (solo lectura)
+    avatar_url = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Cliente
@@ -10,10 +15,17 @@ class ClienteSerializer(serializers.ModelSerializer):
             "id", "nombre", "apellidos", "fecha_nacimiento",
             "contacto_emergencia", "email", "factura", "observaciones",
             "recordar_vencimiento", "recibo_pago", "recibir_promociones",
-            "genero", "usuario", "usuario_nombre",
+            "genero", "usuario", "usuario_nombre", "avatar",       # <-- imagen
+            "avatar_url",
             "is_active", "created_at", "updated_at", "created_by", "updated_by",
         ]
         read_only_fields = ("created_at", "updated_at", "created_by", "updated_by")
+        
+    def get_avatar_url(self, obj):
+        req = self.context.get("request")
+        if obj.avatar and hasattr(obj.avatar, "url"):
+            return req.build_absolute_uri(obj.avatar.url) if req else obj.avatar.url
+        return None
 
 
 class DatoContactoSerializer(serializers.ModelSerializer):

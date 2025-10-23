@@ -254,6 +254,11 @@ class ClienteViewSet(ReceptionBranchScopedByClienteMixin, viewsets.ModelViewSet)
             proximo_cobro = plan_fecha_limite
         if not fecha_limite and plan_fecha_limite:
             fecha_limite = plan_fecha_limite
+            
+            
+        avatar_url = None
+        if c.avatar and hasattr(c.avatar, "url"):
+            avatar_url = request.build_absolute_uri(c.avatar.url)
 
         data = {
             "id": c.id,
@@ -281,8 +286,27 @@ class ClienteViewSet(ReceptionBranchScopedByClienteMixin, viewsets.ModelViewSet)
 
             # opcional
             "ultimo_pago": ultimo_pago,
+            "avatar_url": avatar_url,
         }
         return Response(data)
+    @action(detail=True, methods=["post"], url_path="avatar", parser_classes=[MultiPartParser, FormParser])
+    def set_avatar(self, request, pk=None):
+        """
+        POST /api/v1/clientes/{id}/avatar/
+        body: multipart/form-data con campo 'avatar'
+        """
+        c = self.get_object()
+        file_obj = request.FILES.get("avatar")
+        if not file_obj:
+            return Response({"detail": "Falta archivo 'avatar'."}, status=400)
+
+        c.avatar = file_obj
+        c.updated_by = request.user if hasattr(c, "updated_by") else None
+        c.save(update_fields=["avatar", "updated_by", "updated_at"] if hasattr(c, "updated_at") else ["avatar"])
+
+        url = request.build_absolute_uri(c.avatar.url) if c.avatar and hasattr(c.avatar, "url") else None
+        return Response({"ok": True, "avatar_url": url})
+
 
 class BaseAuthViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]

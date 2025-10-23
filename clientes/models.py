@@ -1,7 +1,23 @@
 from django.db import models
 from core.models import TimeStampedModel
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from empresas.models import Empresa, Sucursal
+
+
+def cliente_avatar_upload_to(instance, filename):
+    # Opcional: arma ruta por año/mes o por ID
+    # A falta de empresa, lo dejamos simple:
+    return f"clientes/avatars/{filename}"
+
+def validate_image(file_obj):
+    # Validación básica de tamaño (ej. 5MB) y content-type
+    max_mb = 5
+    if file_obj.size > max_mb * 1024 * 1024:
+        raise ValidationError(f"La imagen supera {max_mb} MB.")
+    valid_ctypes = {"image/jpeg", "image/png", "image/webp"}
+    if getattr(file_obj, "content_type", None) and file_obj.content_type not in valid_ctypes:
+        raise ValidationError("Formato no permitido. Usa JPG/PNG/WebP.")
 
 class Cliente(TimeStampedModel):
     apellidos = models.CharField("Apellidos", max_length=255)
@@ -24,6 +40,13 @@ class Cliente(TimeStampedModel):
         null=True, blank=True,
         related_name="clientes_asignados",
         verbose_name="Usuario asignado"
+    )
+    avatar = models.ImageField(
+        "Foto/Avatar",
+        upload_to=cliente_avatar_upload_to,
+        null=True,
+        blank=True,
+        validators=[validate_image],
     )
 
     class Meta:
